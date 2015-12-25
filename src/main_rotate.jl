@@ -5,6 +5,7 @@ using Images
 import VideoIO
 
 include("./rotate.jl")
+include("./seek.jl")
 
 function parse_commandline()
     s = ArgParseSettings()
@@ -12,6 +13,9 @@ function parse_commandline()
     @add_arg_table s begin
         "--file"
             help = "filename"
+        "--output"
+            help = "output filename (x.png)"
+            default = "../data/rotate-cropped.png"
         "--rotate", "-r"
             help = "rotation range"
             arg_type = Float64
@@ -28,6 +32,10 @@ function parse_commandline()
         "--y-max", "-Y"
             arg_type = Int
             default = 0
+        "--seek", "-s"
+            help="seek in seconds"
+            arg_type = Int
+            default = 0
     end
 
     return parse_args(s)
@@ -39,13 +47,15 @@ function main()
     io = VideoIO.open(parsed_args["file"])
     f = VideoIO.openvideo(io)
     
+    seek(f, parsed_args["seek"])
+    
     img = read(f, Image)
 
     # width:range, height:range 
     cropped = rotate_and_crop(img, parsed_args["rotate"], (parsed_args["x-min"]:parsed_args["x-max"], parsed_args["y-min"]:parsed_args["y-max"]))
-    isdir("../data") || mkdir("../data")
-    Images.save("../data/rotate-cropped.png", cropped)
-    run(`open ../data/rotate-cropped.png`)
+    # isdir("../data") || mkdir("../data")
+    Images.save(parsed_args["output"], cropped)
+    run(`open $(parsed_args["output"])`)
 end
 
 main()

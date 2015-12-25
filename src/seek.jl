@@ -19,13 +19,19 @@ function Base.seek(avin::VideoIO.AVInput, time, video_stream = 1)
     stream = stream_info.stream
     time_base = stream_info.codec_ctx.time_base
     ticks_per_frame = stream_info.codec_ctx.ticks_per_frame
+    
+    # time_base.den - ticks per second
+    ticks_per_second = Float32(time_base.den)/ Float32(time_base.num)
+    frames_per_second = ticks_per_second/Float32(ticks_per_frame)
+    
+    pos = floor(Int, time * (time_base.den / ticks_per_frame))
+    println("seeking to time $(time)s at position $pos (frame rate $frames_per_second/sec)")
 
-    pos = Int(div(time*time_base.den, time_base.num*ticks_per_frame))
-    # println("seek $pos in $video_stream time_base:$time_base ticks_per_frame:$ticks_per_frame seek_stream_index:$seek_stream_index")
     # Seek
+    # pos (aka Timestamp) is in AVStream.time_base units or, if no stream is specified, in AV_TIME_BASE units.
     ret = VideoIO.av_seek_frame(fc, seek_stream_index, pos, VideoIO.AVSEEK_FLAG_ANY)
-
-    ret < 0 && throw(ErrorException("Could not seek to start of stream"))
+    
+    ret < 0 && throw(ErrorException("Could not seek to position of stream"))
 
     return avin
 end
