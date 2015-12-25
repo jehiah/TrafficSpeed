@@ -20,6 +20,9 @@ function parse_commandline()
             help = "rotation range"
             arg_type = Float64
             default = 0.0
+        "--open"
+            action = :store_true
+            default = false
         "--x-min", "-x"
             arg_type = Int
             default = 0
@@ -55,7 +58,9 @@ function main()
     cropped = rotate_and_crop(img, parsed_args["rotate"], (parsed_args["x-min"]:parsed_args["x-max"], parsed_args["y-min"]:parsed_args["y-max"]))
     # isdir("../data") || mkdir("../data")
     Images.save(parsed_args["output"], cropped)
-    run(`open $(parsed_args["output"])`)
+    if parsed_args["open"]
+        run(`open $(parsed_args["output"])`)
+    end
 end
 
 main()
