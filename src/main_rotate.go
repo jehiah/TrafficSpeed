@@ -30,54 +30,72 @@ const tpl = `
 		<div class="alert alert-danger" role="alert">{{.Error}}</div>
 	{{ end }}
 
+	{{ if .Filename}}
+	<h2>Step 1: Video File</h2>
+	<p><code>{{.Filename}}</code></p>
+	<input type="hidden" name="filename" value="{{.Filename}}" />
+	{{ end }}
 	
-	<h2>Step 1: Select File</h2>
+	{{ if eq .Step "step_one" }}
+	<h2>Step 1: Select Video File</h2>
 	<div class="form-group">
 		<label>Filename: <input type="text" name="filename" id="filename" class="form-control" placeholder="filename.mp4" value="{{.Filename}}"></label>
 	</div>
+	{{ end }}
 
-	{{ if .Filename }}
-		{{ if .Rotate }}
-			<h2>Step 2: Rotation</h2>
-			<div class="form-group">
-				<label>Ration Angle: <input name="rotate" id="rotate" type="text" value="{{.Rotate}}" /> <em>(radians)</em></label>
-			</div>
-			
-			<h2>Step 3: Crop</h2>
-			<p>Instructions: Click on the image below to select the upper left and lower right corner of the frame 
-			to perform speed analysis on.
-			After selecting "point1" and "point2" select the "Continue" button.
-			</p>
-
-			<div class="form-group">
-				<label>Point 1: <input name="point1" id="point1" type="text" /></label>
-			</div>
-			<div class="form-group">
-				<label>Point 2: <input name="point2" id="point2" type="text" /></label>
-			</div>
-			<button type="submit" class="btn btn-primary">Continue</button>
+	{{ if .Rotate }}
+		<h2>Step 2: Rotation</h2>
+		<p>Rotation Angle <code>{{.Rotate}} radians</code></p>
+		<input type="hidden" name="rotate" value="{{.Rotate}}" />
+	{{ end }}
 	
-			<img src="/data/rotate-cropped.png" id="getpoint">
+	{{ if eq .Step "step_two" }}
+		<h2>Step 2: Rotation Detection</h2>
+		<p>Automatic rotation detection works by picking two points that align with the asis of vehicle movement</p>
+		<p>Instructions: Click on the image below to select two points on the axis of movement. 
+		Typically this will be a lane marking in the middle of the street at either end of the visible range. 
+		After selecting "point1" and "point2" select the "Continue" button.</h2>
 
-		{{else}}
-			<h2>Step 2: Rotation Detection</h2>
-			<p>Automatic rotation detection works by picking two points that align with the asis of vehicle movement</p>
-			<p>Instructions: Click on the image below to select two points on the axis of movement. 
-			Typically this will be a lane marking in the middle of the street at either end of the visible range. 
-			After selecting "point1" and "point2" select the "Continue" button.</h2>
-
-			<div class="form-group">
-				<label>Point 1: <input name="point1" id="point1" type="text" /></label>
-			</div>
-			<div class="form-group">
-				<label>Point 2: <input name="point2" id="point2" type="text" /></label>
-			</div>
-			<button type="submit" class="btn btn-primary">Continue</button>
-	
-			<img src="/data/rotate-cropped.png" id="getpoint">
-		{{ end }}
-	{{ else }}
+		<div class="form-group">
+			<label>Point 1: <input name="point1" id="point1" type="text" /></label>
+		</div>
+		<div class="form-group">
+			<label>Point 2: <input name="point2" id="point2" type="text" /></label>
+		</div>
 		<button type="submit" class="btn btn-primary">Continue</button>
+
+		<img src="/data/rotate-cropped.png" id="getpoint">
+	{{ end }}
+
+
+	{{ if eq .BBox.IsZero false}}
+		<h2>Step 3: Crop</h2>
+		<p>Selected Range <code>{{.BBox}}</code></p>
+		<input type="hidden" name="bbox" value="{{.BBox}}" />
+	{{ end }}
+	
+	{{ if eq .Step "step_three" }}
+		<h2>Step 3: Crop</h2>
+		<p>Instructions: Click on the image below to select the upper left and lower right corner of the frame 
+		to perform speed analysis on.
+		After selecting "point1" and "point2" select the "Continue" button.
+		</p>
+
+		<div class="form-group">
+			<label>Point 1: <input name="point1" id="point1" type="text" /></label>
+		</div>
+		<div class="form-group">
+			<label>Point 2: <input name="point2" id="point2" type="text" /></label>
+		</div>
+		<button type="submit" class="btn btn-primary">Continue</button>
+
+		<img src="/data/rotate-cropped.png" id="getpoint">
+	{{ end }}
+
+	
+	{{ if eq .Step "step_four" }}
+		<h2>Step 4: Image Confirmation</h2>
+		<img src="/data/rotate-cropped.png">
 	{{ end }}
 	
 	</form>
@@ -99,7 +117,7 @@ function getpoint(event) {
 			t = document.getElementById("point1")
 		}
 	}
-	t.value = pos_x + "," + pos_y
+	t.value = pos_x + "x" + pos_y
 	alert(title + " is " + t.value)
 }
 document.getElementById("getpoint").addEventListener("click", getpoint, true)
@@ -112,22 +130,56 @@ type project struct {
 	Error    error
 	Filename string
 	Rotate   float64
-	BBox  BBox
+	BBox     BBox
+}
+
+func (p *project) Step() string {
+	switch {
+	case p.Filename == "":
+		return "step_one"
+	case p.Rotate == 0:
+		return "step_two"
+	case p.BBox.IsZero():
+		return "step_three"
+	default:
+		return "step_four"
+	}
 }
 
 type BBox struct {
 	A Point
 	B Point
 }
+
+func ParseBBox(s string) (b BBox) {
+	if !strings.Contains(s, "x") || !strings.Contains(s, " ") {
+		return
+	}
+	c := strings.SplitN(s, " ", 2)
+	b.A = ParsePoint(c[0])
+	b.B = ParsePoint(c[1])
+	return
+}
+
+func (b BBox) IsZero() bool {
+	if b.A.X == 0 && b.A.Y == 0 && b.B.X == 0 && b.B.Y == 0 {
+		return true
+	}
+	return false
+}
+func (b BBox) String() string {
+	return fmt.Sprintf("%s %s", b.A, b.B)
+}
+
 func (b BBox) Range() []string {
-	if b.A == b.B && b.A.X == 0 && b.A.Y == 0 {
+	if b.IsZero() {
 		return nil
 	}
 	s := func(n float64) string {
-		return fmt.Sprintf("%d", n)
+		return fmt.Sprintf("%d", int64(n))
 	}
 	return []string{
-		"-x", s( math.Min(b.A.X, b.B.X)),
+		"-x", s(math.Min(b.A.X, b.B.X)),
 		"-X", s(math.Max(b.A.X, b.B.X)),
 		"-y", s(math.Min(b.A.Y, b.B.Y)),
 		"-Y", s(math.Max(b.A.Y, b.B.Y)),
@@ -139,11 +191,15 @@ type Point struct {
 	Y float64
 }
 
-func ParsePoint(s string) Point {
-	if !strings.Contains(s, ",") {
-		return Point{}
+func (p Point) String() string {
+	return fmt.Sprintf("%dx%d", int64(p.X), int64(p.Y))
+}
+
+func ParsePoint(s string) (p Point) {
+	if !strings.Contains(s, "x") {
+		return
 	}
-	c := strings.SplitN(s, ",", 2)
+	c := strings.SplitN(s, "x", 2)
 	x, _ := strconv.Atoi(c[0])
 	y, _ := strconv.Atoi(c[1])
 	return Point{float64(x), float64(y)}
@@ -178,7 +234,7 @@ func (p *project) Run() {
 		args = append(args, "--rotate", fmt.Sprintf("%0.5f", p.Rotate))
 	}
 	args = append(args, p.BBox.Range()...)
-	
+
 	s := time.Now()
 	log.Printf("julia %s", strings.Join(args, " "))
 	c := exec.Command("julia", args...)
@@ -200,11 +256,15 @@ func main() {
 		if f, err := strconv.ParseFloat(req.Form.Get("rotate"), 64); err == nil {
 			p.Rotate = f
 		}
+		p.BBox = ParseBBox(req.Form.Get("bbox"))
 
 		p1, p2 := req.Form.Get("point1"), req.Form.Get("point2")
 		if p.Rotate == 0 && p1 != "" && p2 != "" {
 			p.Rotate = Radians(ParsePoint(p1), ParsePoint(p2))
 			log.Printf("calculated rotation radians %v from a:%v b:%v", p.Rotate, p1, p2)
+		} else if p1 != "" && p2 != "" {
+			p.BBox = BBox{ParsePoint(p1), ParsePoint(p2)}
+			log.Printf("Bounding Box %#v", p.BBox)
 		}
 
 		p.Run()

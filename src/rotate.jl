@@ -23,6 +23,11 @@ function rotate{T}(A::AbstractMatrix{T}, θ, fill=zero(T))
 end
 rotate(A::Image, θ) = copyproperties(A, rotate(A.data, θ))
 
+function crop{T}(A::AbstractMatrix{T}, region=(1:size(A, 1), 1:size(A, 2)))
+    Base.unsafe_getindex(A, region[1], region[2]) # Extrapolations can ignore bounds checks
+end 
+crop(A::Image, region) = shareproperties(A, crop(A.data, region))
+
 function rotate_and_crop{T}(A::AbstractMatrix{T}, θ, region=(1:size(A, 1), 1:size(A, 2)), fill=zero(T))
     etp = extrapolate(interpolate(A, BSpline(Linear()), OnGrid()), fill)
     R = TransformedArray(etp, tformrotate(θ))
