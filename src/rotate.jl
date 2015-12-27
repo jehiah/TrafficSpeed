@@ -1,4 +1,5 @@
 using Interpolations, AffineTransforms, Images
+import AffineTransforms: center
 
 import VideoIO
 
@@ -9,6 +10,19 @@ Optional arguments:
 * region - a tuple of two arrays that specify the section of the rotated image to return; defaults to the unrotated viewport
 * fill - the value to use for regions that fall outside the rotated image; defaults to zero(T)
 """
+
+function rotate{T}(A::AbstractMatrix{T}, θ, fill=zero(T))
+    # taken from https://github.com/timholy/AffineTransforms.jl/blob/master/test/runtests.jl#L178
+    itp = interpolate(A, BSpline(Linear()), OnGrid())
+    tfm = tformrotate(θ)
+    tA = AffineTransforms.TransformedArray(extrapolate(itp, fill), tfm)
+    dest = AffineTransforms.transform(tA)
+    tfm_recentered = AffineTransforms.AffineTransform(tfm.scalefwd, tfm.offset + center(A) - tfm.scalefwd*center(dest))
+    tA_recentered = AffineTransforms.TransformedArray(extrapolate(itp, fill), tfm_recentered)
+    tA_recentered
+end
+rotate(A::Image, θ) = copyproperties(A, rotate(A.data, θ))
+
 function rotate_and_crop{T}(A::AbstractMatrix{T}, θ, region=(1:size(A, 1), 1:size(A, 2)), fill=zero(T))
     etp = extrapolate(interpolate(A, BSpline(Linear()), OnGrid()), fill)
     R = TransformedArray(etp, tformrotate(θ))

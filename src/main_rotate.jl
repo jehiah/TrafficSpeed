@@ -55,7 +55,8 @@ function main()
     img = read(f, Image)
 
     # width:range, height:range 
-    cropped = rotate_and_crop(img, parsed_args["rotate"], (parsed_args["x-min"]:parsed_args["x-max"], parsed_args["y-min"]:parsed_args["y-max"]))
+    # cropped = rotate_and_crop(img, parsed_args["rotate"], (parsed_args["x-min"]:parsed_args["x-max"], parsed_args["y-min"]:parsed_args["y-max"]))
+    cropped = rotate(img, parsed_args["rotate"])
     # isdir("../data") || mkdir("../data")
     Images.save(parsed_args["output"], cropped)
     if parsed_args["open"]
