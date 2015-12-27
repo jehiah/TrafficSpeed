@@ -26,24 +26,28 @@ const tpl = `
 <body>
 <div class="container"><div class="row"><div class="col-xs-12">
 	<form method="GET" action=".">
-		{{ if .Error }}
-			<div class="alert alert-danger" role="alert">{{.Error}}</div>
-		{{ end }}
+	{{ if .Error }}
+		<div class="alert alert-danger" role="alert">{{.Error}}</div>
+	{{ end }}
 
-		<h2>Step 1: Select File</h2>
-		<div class="form-group">
-			<label>Filename: <input type="text" name="filename" id="filename" class="form-control" placeholder="filename.mp4" value="{{.Filename}}"></label>
-		</div>
+	
+	<h2>Step 1: Select File</h2>
+	<div class="form-group">
+		<label>Filename: <input type="text" name="filename" id="filename" class="form-control" placeholder="filename.mp4" value="{{.Filename}}"></label>
+	</div>
 
+	{{ if .Filename }}
 		{{ if .Rotate }}
-			<h2>Step 2: Rotation (in radians)</h2>
+			<h2>Step 2: Rotation</h2>
 			<div class="form-group">
-				<label>Rotation: <input name="rotate" id="rotate" type="text" value="{{.Rotate}}" /></label>
+				<label>Ration Angle: <input name="rotate" id="rotate" type="text" value="{{.Rotate}}" /> <em>(radians)</em></label>
 			</div>
-			<h2>Step 3: Crop. Pick two points for bounding box</h2>
-			<img src="/data/rotate-cropped.png" onclick="crop()">
-		{{else}}
-			<h2>Step 2: Pick two points on axis of movement (automatic rotate detection)</h2>
+			
+			<h2>Step 3: Crop</h2>
+			<p>Instructions: Click on the image below to select the upper left and lower right corner of the frame 
+			to perform speed analysis on.
+			After selecting "point1" and "point2" select the "Continue" button.
+			</p>
 
 			<div class="form-group">
 				<label>Point 1: <input name="point1" id="point1" type="text" /></label>
@@ -51,25 +55,52 @@ const tpl = `
 			<div class="form-group">
 				<label>Point 2: <input name="point2" id="point2" type="text" /></label>
 			</div>
-		
+			<button type="submit" class="btn btn-primary">Continue</button>
+	
+			<img src="/data/rotate-cropped.png" id="getpoint">
+
+		{{else}}
+			<h2>Step 2: Rotation Detection</h2>
+			<p>Automatic rotation detection works by picking two points that align with the asis of vehicle movement</p>
+			<p>Instructions: Click on the image below to select two points on the axis of movement. 
+			Typically this will be a lane marking in the middle of the street at either end of the visible range. 
+			After selecting "point1" and "point2" select the "Continue" button.</h2>
+
+			<div class="form-group">
+				<label>Point 1: <input name="point1" id="point1" type="text" /></label>
+			</div>
+			<div class="form-group">
+				<label>Point 2: <input name="point2" id="point2" type="text" /></label>
+			</div>
+			<button type="submit" class="btn btn-primary">Continue</button>
+	
 			<img src="/data/rotate-cropped.png" id="getpoint">
 		{{ end }}
-		
-		<br/>
-		<button type="submit" class="btn btn-default">Continue</button>
+	{{ else }}
+		<button type="submit" class="btn btn-primary">Continue</button>
+	{{ end }}
+	
 	</form>
 </div></div></div>
 <script type="text/javascript">
 function getpoint(event) {
-	t = document.getElementById("point1")
+	var i = document.getElementById("getpoint")
+	var pos_x = event.offsetX ? event.offsetX : event.pageX - i.offsetLeft;
+	var pos_y = event.offsetY ? event.offsetY : event.pageY - i.offsetTop;
+	
+	var title = "Point 1"
+	var t = document.getElementById("point1")
 	if (t.value != "") {
+		title = "Point 2"
 		t = document.getElementById("point2")
 		if (t.value != "") {
 			t.value = ""
+			title = "Point 1"
 			t = document.getElementById("point1")
 		}
 	}
-	t.value = event.clientX + "," + event.clientY;
+	t.value = pos_x + "," + pos_y
+	alert(title + " is " + t.value)
 }
 document.getElementById("getpoint").addEventListener("click", getpoint, true)
 
@@ -81,6 +112,26 @@ type project struct {
 	Error    error
 	Filename string
 	Rotate   float64
+	BBox  BBox
+}
+
+type BBox struct {
+	A Point
+	B Point
+}
+func (b BBox) Range() []string {
+	if b.A == b.B && b.A.X == 0 && b.A.Y == 0 {
+		return nil
+	}
+	s := func(n float64) string {
+		return fmt.Sprintf("%d", n)
+	}
+	return []string{
+		"-x", s( math.Min(b.A.X, b.B.X)),
+		"-X", s(math.Max(b.A.X, b.B.X)),
+		"-y", s(math.Min(b.A.Y, b.B.Y)),
+		"-Y", s(math.Max(b.A.Y, b.B.Y)),
+	}
 }
 
 type Point struct {
@@ -106,7 +157,7 @@ func Radians(a, b Point) float64 {
 	adjacent := math.Max(a.X, b.X) - math.Min(a.X, b.X)
 	opposite := math.Max(a.Y, b.Y) - math.Min(a.Y, b.Y)
 	radians := math.Atan(adjacent / opposite)
-	log.Printf("adacent: %v opposite %v radians %v", adjacent, opposite, radians)
+	log.Printf("adjacent: %v opposite %v radians %v", adjacent, opposite, radians)
 	if a.Y < b.Y {
 		return (-1 * radians) + 1.570796
 	}
@@ -126,6 +177,8 @@ func (p *project) Run() {
 	if p.Rotate != 0 {
 		args = append(args, "--rotate", fmt.Sprintf("%0.5f", p.Rotate))
 	}
+	args = append(args, p.BBox.Range()...)
+	
 	s := time.Now()
 	log.Printf("julia %s", strings.Join(args, " "))
 	c := exec.Command("julia", args...)
