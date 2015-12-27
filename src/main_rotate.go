@@ -31,22 +31,24 @@ const tpl = `
 	{{ end }}
 
 	{{ if .Filename}}
-	<h2>Step 1: Video File</h2>
-	<p><code>{{.Filename}}</code></p>
-	<input type="hidden" name="filename" value="{{.Filename}}" />
+		<h2>Step 1: Video File</h2>
+		<p><code>{{.Filename}}</code></p>
+		<input type="hidden" name="filename" value="{{.Filename}}" />
+		<div><img src="/data/step_two.png" style="width: 10%; height: 10%;"></div>
 	{{ end }}
 	
 	{{ if eq .Step "step_one" }}
-	<h2>Step 1: Select Video File</h2>
-	<div class="form-group">
-		<label>Filename: <input type="text" name="filename" id="filename" class="form-control" placeholder="filename.mp4" value="{{.Filename}}"></label>
-	</div>
+		<h2>Step 1: Select Video File</h2>
+		<div class="form-group">
+			<label>Filename: <input type="text" name="filename" id="filename" class="form-control" placeholder="filename.mp4" value="{{.Filename}}"></label>
+		</div>
 	{{ end }}
 
 	{{ if .Rotate }}
 		<h2>Step 2: Rotation</h2>
 		<p>Rotation Angle <code>{{.Rotate}} radians</code></p>
 		<input type="hidden" name="rotate" value="{{.Rotate}}" />
+		<div><img src="/data/step_three.png" style="width: 15%; height: 15%;"></div>
 	{{ end }}
 	
 	{{ if eq .Step "step_two" }}
@@ -64,7 +66,7 @@ const tpl = `
 		</div>
 		<button type="submit" class="btn btn-primary">Continue</button>
 
-		<img src="/data/rotate-cropped.png" id="getpoint">
+		<img src="/data/step_two.png" id="getpoint">
 	{{ end }}
 
 
@@ -72,6 +74,7 @@ const tpl = `
 		<h2>Step 3: Crop</h2>
 		<p>Selected Range <code>{{.BBox}}</code></p>
 		<input type="hidden" name="bbox" value="{{.BBox}}" />
+		<div><img src="/data/step_four.png" style="width: 20%; height: 20%;"></div>
 	{{ end }}
 	
 	{{ if eq .Step "step_three" }}
@@ -89,22 +92,51 @@ const tpl = `
 		</div>
 		<button type="submit" class="btn btn-primary">Continue</button>
 
-		<img src="/data/rotate-cropped.png" id="getpoint">
+		<img src="/data/step_three.png" id="getpoint">
 	{{ end }}
 
 	
 	{{ if eq .Step "step_four" }}
-		<h2>Step 4: Image Confirmation</h2>
-		<img src="/data/rotate-cropped.png">
+		<h2>Step 4: Mask Regions</h2>
+		<p>Masking allows the detection of vehicles in different lanes to avoid bleeding into each other, 
+			and eliminates irrelevant parts of the image (like sidewalks or parked cars).
+			Depending on the visual perspective the masked rows should be closer to wheel position to account for 
+			tall vehicles in the lane.
+		</p>
+		<p>Instructions: Note the X and Y from the image, and enter masks as a row range <code>row:row</code> 
+			or a bounding box pair of coordinates <code>10x20 20x30</code>.</p>
+
+		<div class="form-group">
+			<label>Mask: <input name="mask" type="text" /></label>
+		</div>
+		<div class="form-group">
+			<label>Mask: <input name="mask" type="text" /></label>
+		</div>                             
+		<div class="form-group">
+			<label>Mask: <input name="mask" type="text" /></label>
+		</div>
+		<div class="form-group">
+			<label>Mask: <input name="mask" type="text" /></label>
+		</div>
+
+		<div><button type="submit" class="btn btn-primary">Continue</button></div>
+		
+		<p>Mouse Position: <span id="mouse_position" style="font-weight:bold;size:14pt;"></span> <span id="mouse_click" style="font-weight:bold;size:14pt;"></span></p>
+
+		<img src="/data/step_four.png" id="mousemove">
 	{{ end }}
 	
 	</form>
 </div></div></div>
 <script type="text/javascript">
+function pos(el, event) {
+	var pos_x = event.offsetX ? event.offsetX : event.pageX - el.offsetLeft;
+	var pos_y = event.offsetY ? event.offsetY : event.pageY - el.offsetTop;
+	return pos_x + "x" + pos_y
+}
+
 function getpoint(event) {
 	var i = document.getElementById("getpoint")
-	var pos_x = event.offsetX ? event.offsetX : event.pageX - i.offsetLeft;
-	var pos_y = event.offsetY ? event.offsetY : event.pageY - i.offsetTop;
 	
 	var title = "Point 1"
 	var t = document.getElementById("point1")
@@ -117,10 +149,31 @@ function getpoint(event) {
 			t = document.getElementById("point1")
 		}
 	}
-	t.value = pos_x + "x" + pos_y
+	t.value = pos(i, event)
 	alert(title + " is " + t.value)
 }
-document.getElementById("getpoint").addEventListener("click", getpoint, true)
+function mousemove(event) {
+	var i = document.getElementById("mousemove")
+	document.getElementById("mouse_position").innerHTML = pos(i, event)
+}
+function mouseclick(event) {
+	var i = document.getElementById("mousemove")
+	document.getElementById("mouse_click").innerHTML = "last click: " + pos(i, event)
+}
+function on(pattern, event, f) {
+	var el = document.getElementById(pattern)
+	if (el == null) {
+		return
+	}
+	el.addEventListener(event, f, true)
+}
+
+on("getpoint", "click", getpoint)
+on("mousemove", "click", mouseclick)
+on("mousemove", "mousemove", mousemove)
+on("mousemove", "mouseout", function(){
+	document.getElementById("mouse_position").innerHTML = ""
+})
 
 </script>
 </body>
@@ -229,7 +282,7 @@ func (p *project) Run() {
 		p.Error = err
 		return
 	}
-	args := []string{"main_rotate.jl", "--file", p.Filename, "--output", "../data/rotate-cropped.png"}
+	args := []string{"main_rotate.jl", "--file", p.Filename, "--output", fmt.Sprintf("../data/%s.png", p.Step())}
 	if p.Rotate != 0 {
 		args = append(args, "--rotate", fmt.Sprintf("%0.5f", p.Rotate))
 	}

@@ -56,11 +56,13 @@ function main()
 
     # width:range, height:range 
     # cropped = rotate_and_crop(img, parsed_args["rotate"], (parsed_args["x-min"]:parsed_args["x-max"], parsed_args["y-min"]:parsed_args["y-max"]))
+
     cropped = rotate(img, parsed_args["rotate"])
     if parsed_args["x-min"] != 0 && parsed_args["x-max"] != 0
-        println("before $(size(cropped.data, 1))x$(size(cropped.data, 2))")
-        cropped = crop(cropped, (parsed_args["x-min"]:parsed_args["x-max"], parsed_args["y-min"]:parsed_args["y-max"]))
-        println("after $(size(cropped.data, 1))x$(size(cropped.data, 2))")
+        # println("before $(size(cropped.data, 1))x$(size(cropped.data, 2))")
+        cropped = sliceim(cropped, "x", parsed_args["x-min"]:parsed_args["x-max"], "y", parsed_args["y-min"]:parsed_args["y-max"])
+        # cropped = crop(cropped, (parsed_args["x-min"]:parsed_args["x-max"], parsed_args["y-min"]:parsed_args["y-max"]))
+        # println("after $(size(cropped.data, 1))x$(size(cropped.data, 2))")
     end
     # isdir("../data") || mkdir("../data")
     Images.save(parsed_args["output"], cropped)
