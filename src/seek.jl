@@ -36,5 +36,17 @@ function Base.seek(avin::VideoIO.AVInput, time, video_stream = 1)
     return avin
 end
 
+function duration(avin::VideoIO.AVInput, video_stream = 1)
+    stream_info = avin.video_info[video_stream]
+    time_base = stream_info.codec_ctx.time_base
+
+    ticks_per_second = Float32(time_base.den)/ Float32(time_base.num)
+    ticks_per_frame = stream_info.codec_ctx.ticks_per_frame
+    frames_per_second = ticks_per_second/Float32(ticks_per_frame)
+    frame_count = stream_info.stream.nb_frames
+    return Float32(frame_count) / frames_per_second
+end
+duration(s::VideoIO.VideoReader, video_stream=1) = duration(s.avin, video_stream)
+
 # While we're at it, It's very handy to know how many frames there are:
 Base.length(s::VideoIO.VideoReader) = s.avin.video_info[1].stream.nb_frames

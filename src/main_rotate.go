@@ -40,9 +40,9 @@ const tpl = `
 
 	{{ if .Filename}}
 		<h2>Step 1: Video File</h2>
-		<p><code>{{.Filename}}</code></p>
+		<p><code>{{.Filename}}</code> Frames:<code>{{.Response.Frames}}</code> Duration:<code>{{.Response.Duration | printf "%0.1f"}}seconds</code></p>
 		<input type="hidden" name="filename" value="{{.Filename}}" />
-		<div><img src="/data/step_two.png" style="width: 10%; height: 10%;"></div>
+		<div><img src="{{.Response.Step2Img}}" style="width: 20%; height: 20%;"></div>
 	{{ end }}
 	
 	{{ if eq .Step "step_one" }}
@@ -56,7 +56,7 @@ const tpl = `
 		<h2>Step 2: Rotation</h2>
 		<p>Rotation Angle <code>{{.Rotate}} radians</code></p>
 		<input type="hidden" name="rotate" value="{{.Rotate}}" />
-		<div><img src="/data/step_three.png" style="width: 15%; height: 15%;"></div>
+		<div><img src="{{.Response.Step3Img}}" style="width: 25%; height: 25%;"></div>
 	{{ end }}
 	
 	{{ if eq .Step "step_two" }}
@@ -74,7 +74,7 @@ const tpl = `
 		</div>
 		<button type="submit" class="btn btn-primary">Continue</button>
 
-		<img src="/data/step_two.png" id="getpoint">
+		<img src="{{.Response.Step2Img}}" id="getpoint">
 	{{ end }}
 
 
@@ -82,7 +82,7 @@ const tpl = `
 		<h2>Step 3: Crop</h2>
 		<p>Selected Range <code>{{.BBox}}</code></p>
 		<input type="hidden" name="bbox" value="{{.BBox}}" />
-		<div><img src="/data/step_four.png" style="width: 20%; height: 20%;"></div>
+		<div><img src="{{.Response.Step4Img}}" style="width: 25%; height: 25%;"></div>
 	{{ end }}
 	
 	{{ if eq .Step "step_three" }}
@@ -100,7 +100,7 @@ const tpl = `
 		</div>
 		<button type="submit" class="btn btn-primary">Continue</button>
 
-		<img src="/data/step_three.png" id="getpoint">
+		<img src="{{.Response.Step3Img}}" id="getpoint">
 	{{ end }}
 
 	{{ if .Masks }}
@@ -135,26 +135,18 @@ const tpl = `
 		
 		<p>Mouse Position: <span id="mouse_position" style="font-weight:bold;size:14pt;"></span> <span id="mouse_click" style="font-weight:bold;size:14pt;"></span></p>
 
-		<img src="/data/step_four.png" id="mousemove">
+		<img src="{{.Response.Step4Img}}" id="mousemove">
 	{{ end }}
 	
 	{{ if eq .Step "step_five" }}
-		<h2>Step 4: Object Detection</h2>
+		<h2>Step 5: Object Detection</h2>
 		<p>The threshold must be set for what size triggers vehicle detection.</p>
 		<p>Three frames have been randomly selected as examples.</p>
 		<div class="row">
-		{{ range .Step5Examples }}
-		<div class="class-xs-6 class-sm-4 class-md-3">
-		<p>Frame</p>
-		<p>Objects</p>
-		<p>Detected</p>
-		</div>
-		{{ end }}
-		<img src="/data/step_five.png" id="mousemove">
+		<img src="{{.Response.Step5Img}}" id="mousemove">
 	{{ end }}
 	
-	
-	{{ if eq .Step "step_five"}}
+	{{ if eq .Step "step_six"}}
 		<h2>Step 6: Speed Detection</h2>
 		
 	{{ end }}
@@ -213,16 +205,22 @@ on("mousemove", "mouseout", function(){
 </html>`
 
 type Project struct {
-	Err      error
-	Filename string  `json:"filename"`
-	Rotate   float64 `json:"rotate,omitempty"`
-	BBox     BBox    `json:"bbox,omitempty"`
-	Masks    []Mask  `json:"masks,omitempty"`
-	Step     string  `json:"step"`
-	Response Response
+	Err      error    `json:"error,omitempty"`
+	Filename string   `json:"filename"`
+	Rotate   float64  `json:"rotate,omitempty"`
+	BBox     BBox     `json:"bbox,omitempty"`
+	Masks    []Mask   `json:"masks,omitempty"`
+	Step     string   `json:"step"`
+	Response Response `json:"response,omitempty"`
 }
 type Response struct {
-	Err string `json:"err"`
+	Err      string       `json:"err,omitempty"`
+	Frames   int64        `json:"frames,omitempty"`
+	Duration float64      `json:"duration_seconds,omitempty"`
+	Step2Img template.URL `json:"step_2_img,omitempty"`
+	Step3Img template.URL `json:"step_3_img,omitempty"`
+	Step4Img template.URL `json:"step_4_img,omitempty"`
+	Step5Img template.URL `json:"step_5_img,omitempty"`
 }
 
 func (p *Project) getStep() string {
@@ -233,7 +231,7 @@ func (p *Project) getStep() string {
 		return "step_two"
 	case p.BBox.IsZero():
 		return "step_three"
-	case len(p.Masks) > 0:
+	case len(p.Masks) == 0:
 		return "step_four"
 	default:
 		return "step_five"
@@ -361,7 +359,6 @@ func (p *Project) Run(backend string) error {
 	s := time.Now()
 	u := backend + "/api/"
 	resp, err := http.Post(u, "application/json", bytes.NewBuffer(body))
-	log.Printf("%q took %s", u, time.Since(s))
 	if err != nil {
 		return err
 	}
@@ -369,6 +366,11 @@ func (p *Project) Run(backend string) error {
 	body, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
+	}
+	log.Printf("Got %d from %q took %s with %d bytes", resp.StatusCode, u, time.Since(s), len(body))
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("got status code %d from %s", resp.StatusCode, u)
 	}
 	err = json.Unmarshal(body, &p.Response)
 	if err != nil {
