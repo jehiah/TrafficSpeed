@@ -25,9 +25,11 @@ const tpl = `
 </head>
 <body>
 <div class="container"><div class="row"><div class="col-xs-12">
+	<h1>Open Speed Data Analysis</h1>
 	<form method="GET" action=".">
-	{{ if .Error }}
-		<div class="alert alert-danger" role="alert">{{.Error}}</div>
+	
+	{{ if .Err }}
+		<div class="alert alert-danger" role="alert">{{.Err}}</div>
 	{{ end }}
 
 	{{ if .Filename}}
@@ -95,6 +97,10 @@ const tpl = `
 		<img src="/data/step_three.png" id="getpoint">
 	{{ end }}
 
+	{{ if .Masks }}
+		<h2>Step 4: Mask Regions</h2>
+		<p>Masked regions: {{range .Masks }}<code>{{.}}</code> {{end}}</p>
+	{{ end }}
 	
 	{{ if eq .Step "step_four" }}
 		<h2>Step 4: Mask Regions</h2>
@@ -104,7 +110,7 @@ const tpl = `
 			tall vehicles in the lane.
 		</p>
 		<p>Instructions: Note the X and Y from the image, and enter masks as a row range <code>row:row</code> 
-			or a bounding box pair of coordinates <code>10x20 20x30</code>.</p>
+			or a bounding box pair of coordinates <code>10x20 20x30</code>. To continue without masks enter a mask of <code>-</code>.</p>
 
 		<div class="form-group">
 			<label>Mask: <input name="mask" type="text" /></label>
@@ -124,6 +130,27 @@ const tpl = `
 		<p>Mouse Position: <span id="mouse_position" style="font-weight:bold;size:14pt;"></span> <span id="mouse_click" style="font-weight:bold;size:14pt;"></span></p>
 
 		<img src="/data/step_four.png" id="mousemove">
+	{{ end }}
+	
+	{{ if eq .Step "step_five" }}
+		<h2>Step 4: Object Detection</h2>
+		<p>The threshold must be set for what size triggers vehicle detection.</p>
+		<p>Three frames have been randomly selected as examples.</p>
+		<div class="row">
+		{{ range .Step5Examples }}
+		<div class="class-xs-6 class-sm-4 class-md-3">
+		<p>Frame</p>
+		<p>Objects</p>
+		<p>Detected</p>
+		</div>
+		{{ end }}
+		<img src="/data/step_five.png" id="mousemove">
+	{{ end }}
+	
+	
+	{{ if eq .Step "step_five"}}
+		<h2>Step 6: Speed Detection</h2>
+		
 	{{ end }}
 	
 	</form>
@@ -179,14 +206,15 @@ on("mousemove", "mouseout", function(){
 </body>
 </html>`
 
-type project struct {
-	Error    error
+type Project struct {
+	Err      error
 	Filename string
 	Rotate   float64
 	BBox     BBox
+	Masks    []Mask
 }
 
-func (p *project) Step() string {
+func (p *Project) Step() string {
 	switch {
 	case p.Filename == "":
 		return "step_one"
@@ -194,9 +222,48 @@ func (p *project) Step() string {
 		return "step_two"
 	case p.BBox.IsZero():
 		return "step_three"
-	default:
+	case len(p.Masks) > 0:
 		return "step_four"
+	default:
+		return "step_five"
 	}
+}
+
+type Mask struct {
+	Start int64
+	End   int64
+	BBox
+	NullMask bool
+}
+
+func (m Mask) String() string {
+	if m.NullMask {
+		return "-"
+	}
+	if m.Start != 0 && m.End != 0 {
+		return fmt.Sprintf("%d:%d", m.Start, m.End)
+	}
+	return m.BBox.String()
+}
+
+func ParseMask(s string) (m Mask, ok bool) {
+	s = strings.TrimSpace(s)
+	switch {
+	case s == "-":
+		m.NullMask = true
+		ok = true
+	case strings.Count(s, ":") == 1:
+		c := strings.SplitN(s, ":", 2)
+		x, _ := strconv.Atoi(c[0])
+		y, _ := strconv.Atoi(c[1])
+		m.Start = int64(math.Min(float64(x), float64(y)))
+		m.End = int64(math.Max(float64(x), float64(y)))
+		ok = true
+	case strings.Count(s, "x") == 2 && strings.Count(s, " ") == 2:
+		m.BBox = ParseBBox(s)
+		ok = !m.BBox.IsZero()
+	}
+	return
 }
 
 type BBox struct {
@@ -205,6 +272,7 @@ type BBox struct {
 }
 
 func ParseBBox(s string) (b BBox) {
+	s = strings.TrimSpace(s)
 	if !strings.Contains(s, "x") || !strings.Contains(s, " ") {
 		return
 	}
@@ -249,6 +317,7 @@ func (p Point) String() string {
 }
 
 func ParsePoint(s string) (p Point) {
+	s = strings.TrimSpace(s)
 	if !strings.Contains(s, "x") {
 		return
 	}
@@ -273,13 +342,13 @@ func Radians(a, b Point) float64 {
 	return radians
 }
 
-func (p *project) Run() {
+func (p *Project) Run() {
 	if p.Filename == "" {
 		return
 	}
 	_, err := os.Stat(p.Filename)
 	if err != nil {
-		p.Error = err
+		p.Err = err
 		return
 	}
 	args := []string{"main_rotate.jl", "--file", p.Filename, "--output", fmt.Sprintf("../data/%s.png", p.Step())}
@@ -291,7 +360,7 @@ func (p *project) Run() {
 	s := time.Now()
 	log.Printf("julia %s", strings.Join(args, " "))
 	c := exec.Command("julia", args...)
-	p.Error = c.Run()
+	p.Err = c.Run()
 	log.Printf("took %s", time.Since(s))
 }
 
@@ -302,7 +371,7 @@ func main() {
 		t := template.Must(template.New("webpage").Parse(tpl))
 
 		req.ParseForm()
-		p := &project{
+		p := &Project{
 			Filename: req.Form.Get("filename"),
 		}
 
@@ -318,6 +387,15 @@ func main() {
 		} else if p1 != "" && p2 != "" {
 			p.BBox = BBox{ParsePoint(p1), ParsePoint(p2)}
 			log.Printf("Bounding Box %#v", p.BBox)
+		}
+
+		for i, m := range req.Form["mask"] {
+			if mm, ok := ParseMask(m); ok {
+				p.Masks = append(p.Masks, mm)
+			} else if !ok && len(strings.TrimSpace(m)) > 0 {
+				p.Err = fmt.Errorf("Error Parsing Mask #%d %q", i, m)
+				break
+			}
 		}
 
 		p.Run()
