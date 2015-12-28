@@ -1,14 +1,17 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
 	"os"
-	"os/exec"
+	// "os/exec"
+	"bytes"
 	"strconv"
 	"strings"
 	"time"
@@ -30,6 +33,9 @@ const tpl = `
 	
 	{{ if .Err }}
 		<div class="alert alert-danger" role="alert">{{.Err}}</div>
+	{{ end }}
+	{{ if .Response.Err }}
+		<div class="alert alert-danger" role="alert">{{.Response.Err}}</div>
 	{{ end }}
 
 	{{ if .Filename}}
@@ -208,13 +214,18 @@ on("mousemove", "mouseout", function(){
 
 type Project struct {
 	Err      error
-	Filename string
-	Rotate   float64
-	BBox     BBox
-	Masks    []Mask
+	Filename string  `json:"filename"`
+	Rotate   float64 `json:"rotate,omitempty"`
+	BBox     BBox    `json:"bbox,omitempty"`
+	Masks    []Mask  `json:"masks,omitempty"`
+	Step     string  `json:"step"`
+	Response Response
+}
+type Response struct {
+	Err string `json:"err"`
 }
 
-func (p *Project) Step() string {
+func (p *Project) getStep() string {
 	switch {
 	case p.Filename == "":
 		return "step_one"
@@ -230,10 +241,10 @@ func (p *Project) Step() string {
 }
 
 type Mask struct {
-	Start int64
-	End   int64
-	BBox
-	NullMask bool
+	Start    int64 `json:"start,omitempty"`
+	End      int64 `json:"end,omitempty"`
+	BBox     BBox  `json:"bbox,omitempty"`
+	NullMask bool  `json:"null_mask,omitempty"`
 }
 
 func (m Mask) String() string {
@@ -267,8 +278,8 @@ func ParseMask(s string) (m Mask, ok bool) {
 }
 
 type BBox struct {
-	A Point
-	B Point
+	A Point `json:"a"`
+	B Point `json:"b"`
 }
 
 func ParseBBox(s string) (b BBox) {
@@ -277,8 +288,13 @@ func ParseBBox(s string) (b BBox) {
 		return
 	}
 	c := strings.SplitN(s, " ", 2)
-	b.A = ParsePoint(c[0])
-	b.B = ParsePoint(c[1])
+	p1 := ParsePoint(c[0])
+	p2 := ParsePoint(c[1])
+	// for a bounding box, always top left and bottom right
+	b.A.X = math.Min(p1.X, p2.X)
+	b.A.Y = math.Min(p1.Y, p2.Y)
+	b.B.X = math.Max(p1.X, p2.X)
+	b.B.Y = math.Max(p1.Y, p2.Y)
 	return
 }
 
@@ -292,24 +308,9 @@ func (b BBox) String() string {
 	return fmt.Sprintf("%s %s", b.A, b.B)
 }
 
-func (b BBox) Range() []string {
-	if b.IsZero() {
-		return nil
-	}
-	s := func(n float64) string {
-		return fmt.Sprintf("%d", int64(n))
-	}
-	return []string{
-		"-x", s(math.Min(b.A.X, b.B.X)),
-		"-X", s(math.Max(b.A.X, b.B.X)),
-		"-y", s(math.Min(b.A.Y, b.B.Y)),
-		"-Y", s(math.Max(b.A.Y, b.B.Y)),
-	}
-}
-
 type Point struct {
-	X float64
-	Y float64
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
 }
 
 func (p Point) String() string {
@@ -342,29 +343,42 @@ func Radians(a, b Point) float64 {
 	return radians
 }
 
-func (p *Project) Run() {
+func (p *Project) Run(backend string) error {
+	p.Step = p.getStep()
+
 	if p.Filename == "" {
-		return
+		return nil
 	}
 	_, err := os.Stat(p.Filename)
 	if err != nil {
-		p.Err = err
-		return
+		return err
 	}
-	args := []string{"main_rotate.jl", "--file", p.Filename, "--output", fmt.Sprintf("../data/%s.png", p.Step())}
-	if p.Rotate != 0 {
-		args = append(args, "--rotate", fmt.Sprintf("%0.5f", p.Rotate))
-	}
-	args = append(args, p.BBox.Range()...)
 
+	body, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
 	s := time.Now()
-	log.Printf("julia %s", strings.Join(args, " "))
-	c := exec.Command("julia", args...)
-	p.Err = c.Run()
-	log.Printf("took %s", time.Since(s))
+	u := backend + "/api/"
+	resp, err := http.Post(u, "application/json", bytes.NewBuffer(body))
+	log.Printf("%q took %s", u, time.Since(s))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(body, &p.Response)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func main() {
+	backend := flag.String("backend", "http://127.0.0.1:8000", "base path to backend processing service")
 	flag.Parse()
 	http.Handle("/data/", http.StripPrefix("/data/", http.FileServer(http.Dir("../data/"))))
 	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
@@ -398,13 +412,21 @@ func main() {
 			}
 		}
 
-		p.Run()
+		err := p.Run(*backend)
+		if err != nil {
+			log.Printf("%s", err)
+			p.Err = err
+		}
 
-		err := t.ExecuteTemplate(w, "webpage", p)
+		err = t.ExecuteTemplate(w, "webpage", p)
 		if err != nil {
 			log.Printf("%s", err)
 		}
 	})
+
+	// TODO: goroutine exec of `julia main.jl`
+	// c := exec.Command("julia", "main.jl")
+	// err := c.Run()
 
 	log.Printf("listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
