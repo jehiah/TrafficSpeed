@@ -12,6 +12,7 @@ println("starting up")
 include("./rotate.jl")
 include("./seek.jl")
 include("./base64img.jl")
+include("./mask.jl")
 
 jsonContentType = Dict{AbstractString,AbstractString}([("Content-Type", "application/json")])
 
@@ -48,19 +49,30 @@ http = HttpHandler() do req::Request, res::Response
 
         if haskey(job, "rotate")
             println("rotating $(job["rotate"])")
+            println("$(summary(img))")
             img = rotate(img, job["rotate"])
+            println("$(summary(img))")
         end
         println("step_3_img")
         resp["step_3_img"] = base64img("image/png", img)
+
         if haskey(job, "bbox")
             println("cropping $(job["bbox"])")
-            # println("before $(size(cropped.data, 1))x$(size(cropped.data, 2))")
-            img = sliceim(img, "x", job["bbox"]["a"]["x"]:job["bbox"]["b"]["x"], "y", job["bbox"]["a"]["y"]:job["bbox"]["b"]["y"])
+            println("before crop $(summary(img))")
+            # img = subim(img, "x", job["bbox"]["a"]["x"]:job["bbox"]["b"]["x"], "y", job["bbox"]["a"]["y"]:job["bbox"]["b"]["y"])
+            img = crop(img, (job["bbox"]["a"]["x"]:job["bbox"]["b"]["x"], job["bbox"]["a"]["y"]:job["bbox"]["b"]["y"]))
+            # img = sliceim(img, "x", job["bbox"]["a"]["x"]:job["bbox"]["b"]["x"], "y", job["bbox"]["a"]["y"]:job["bbox"]["b"]["y"])
             # cropped = crop(cropped, (parsed_args["x-min"]:parsed_args["x-max"], parsed_args["y-min"]:parsed_args["y-max"]))
-            # println("after $(size(cropped.data, 1))x$(size(cropped.data, 2))")
+            println("after crop $(summary(img))")
         end
-        println("cropping step_4_img")
+        println("step_4_img")
         resp["step_4_img"] = base64img("image/png", img)
+        if haskey(job, "masks")
+            println("masking $(job["masks"])")
+            masked = mask(img, job["masks"])
+            println("step_5_img")
+            resp["step_4_mask_img"] = base64img("image/png", masked)
+        end
 
         Response(200, jsonContentType, JSON.json(resp))
     else

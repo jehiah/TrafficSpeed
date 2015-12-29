@@ -82,7 +82,7 @@ const tpl = `
 		<h2>Step 3: Crop</h2>
 		<p>Selected Range <code>{{.BBox}}</code></p>
 		<input type="hidden" name="bbox" value="{{.BBox}}" />
-		<div><img src="{{.Response.Step4Img}}" style="width: 25%; height: 25%;"></div>
+		<div><img src="{{.Response.Step4Img}}" style="width: 40%; height: 40%;"></div>
 	{{ end }}
 	
 	{{ if eq .Step "step_three" }}
@@ -106,6 +106,7 @@ const tpl = `
 	{{ if .Masks }}
 		<h2>Step 4: Mask Regions</h2>
 		<p>Masked regions: {{range .Masks }}<code>{{.}}</code> {{end}}</p>
+		<div><img src="{{.Response.Step4MaskImg}}" style="width: 40%; height: 40%;"></div>
 	{{ end }}
 	
 	{{ if eq .Step "step_four" }}
@@ -124,6 +125,9 @@ const tpl = `
 		<div class="form-group">
 			<label>Mask: <input name="mask" type="text" /></label>
 		</div>                             
+		<div class="form-group">
+			<label>Mask: <input name="mask" type="text" /></label>
+		</div>
 		<div class="form-group">
 			<label>Mask: <input name="mask" type="text" /></label>
 		</div>
@@ -208,19 +212,20 @@ type Project struct {
 	Err      error    `json:"error,omitempty"`
 	Filename string   `json:"filename"`
 	Rotate   float64  `json:"rotate,omitempty"`
-	BBox     BBox     `json:"bbox,omitempty"`
+	BBox     *BBox    `json:"bbox,omitempty"`
 	Masks    []Mask   `json:"masks,omitempty"`
 	Step     string   `json:"step"`
 	Response Response `json:"response,omitempty"`
 }
 type Response struct {
-	Err      string       `json:"err,omitempty"`
-	Frames   int64        `json:"frames,omitempty"`
-	Duration float64      `json:"duration_seconds,omitempty"`
-	Step2Img template.URL `json:"step_2_img,omitempty"`
-	Step3Img template.URL `json:"step_3_img,omitempty"`
-	Step4Img template.URL `json:"step_4_img,omitempty"`
-	Step5Img template.URL `json:"step_5_img,omitempty"`
+	Err          string       `json:"err,omitempty"`
+	Frames       int64        `json:"frames,omitempty"`
+	Duration     float64      `json:"duration_seconds,omitempty"`
+	Step2Img     template.URL `json:"step_2_img,omitempty"`
+	Step3Img     template.URL `json:"step_3_img,omitempty"`
+	Step4Img     template.URL `json:"step_4_img,omitempty"`
+	Step4MaskImg template.URL `json:"step_4_mask_img,omitempty"`
+	Step5Img     template.URL `json:"step_5_img,omitempty"`
 }
 
 func (p *Project) getStep() string {
@@ -229,7 +234,7 @@ func (p *Project) getStep() string {
 		return "step_one"
 	case p.Rotate == 0:
 		return "step_two"
-	case p.BBox.IsZero():
+	case p.BBox == nil || p.BBox.IsZero():
 		return "step_three"
 	case len(p.Masks) == 0:
 		return "step_four"
@@ -241,7 +246,7 @@ func (p *Project) getStep() string {
 type Mask struct {
 	Start    int64 `json:"start,omitempty"`
 	End      int64 `json:"end,omitempty"`
-	BBox     BBox  `json:"bbox,omitempty"`
+	BBox     *BBox `json:"bbox,omitempty"`
 	NullMask bool  `json:"null_mask,omitempty"`
 }
 
@@ -268,7 +273,7 @@ func ParseMask(s string) (m Mask, ok bool) {
 		m.Start = int64(math.Min(float64(x), float64(y)))
 		m.End = int64(math.Max(float64(x), float64(y)))
 		ok = true
-	case strings.Count(s, "x") == 2 && strings.Count(s, " ") == 2:
+	case strings.Count(s, "x") == 2 && strings.Count(s, " ") == 1:
 		m.BBox = ParseBBox(s)
 		ok = !m.BBox.IsZero()
 	}
@@ -280,11 +285,12 @@ type BBox struct {
 	B Point `json:"b"`
 }
 
-func ParseBBox(s string) (b BBox) {
+func ParseBBox(s string) (b *BBox) {
 	s = strings.TrimSpace(s)
 	if !strings.Contains(s, "x") || !strings.Contains(s, " ") {
-		return
+		return nil
 	}
+	b = &BBox{}
 	c := strings.SplitN(s, " ", 2)
 	p1 := ParsePoint(c[0])
 	p2 := ParsePoint(c[1])
@@ -296,13 +302,13 @@ func ParseBBox(s string) (b BBox) {
 	return
 }
 
-func (b BBox) IsZero() bool {
+func (b *BBox) IsZero() bool {
 	if b.A.X == 0 && b.A.Y == 0 && b.B.X == 0 && b.B.Y == 0 {
 		return true
 	}
 	return false
 }
-func (b BBox) String() string {
+func (b *BBox) String() string {
 	return fmt.Sprintf("%s %s", b.A, b.B)
 }
 
@@ -395,13 +401,16 @@ func main() {
 			p.Rotate = f
 		}
 		p.BBox = ParseBBox(req.Form.Get("bbox"))
+		if p.BBox == nil {
+			p.BBox = &BBox{} // make template easier
+		}
 
 		p1, p2 := req.Form.Get("point1"), req.Form.Get("point2")
 		if p.Rotate == 0 && p1 != "" && p2 != "" {
 			p.Rotate = Radians(ParsePoint(p1), ParsePoint(p2))
 			log.Printf("calculated rotation radians %v from a:%v b:%v", p.Rotate, p1, p2)
 		} else if p1 != "" && p2 != "" {
-			p.BBox = BBox{ParsePoint(p1), ParsePoint(p2)}
+			p.BBox = &BBox{ParsePoint(p1), ParsePoint(p2)}
 			log.Printf("Bounding Box %#v", p.BBox)
 		}
 
@@ -409,7 +418,7 @@ func main() {
 			if mm, ok := ParseMask(m); ok {
 				p.Masks = append(p.Masks, mm)
 			} else if !ok && len(strings.TrimSpace(m)) > 0 {
-				p.Err = fmt.Errorf("Error Parsing Mask #%d %q", i, m)
+				p.Err = fmt.Errorf("Error Parsing Mask #%d %q", i+1, m)
 				break
 			}
 		}

@@ -19,7 +19,9 @@ function rotate{T}(A::AbstractMatrix{T}, θ, fill=zero(T))
     dest = AffineTransforms.transform(tA)
     tfm_recentered = AffineTransforms.AffineTransform(tfm.scalefwd, tfm.offset + center(A) - tfm.scalefwd*center(dest))
     tA_recentered = AffineTransforms.TransformedArray(extrapolate(itp, fill), tfm_recentered)
-    tA_recentered
+    
+    Base.unsafe_getindex(tA_recentered, 1:size(tA_recentered, 1), 1:size(tA_recentered, 2)) # Extrapolations can ignore bounds checks
+    # tA_recentered
 end
 rotate(A::Image, θ) = copyproperties(A, rotate(A.data, θ))
 
