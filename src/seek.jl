@@ -25,7 +25,7 @@ function Base.seek(avin::VideoIO.AVInput, time, video_stream = 1)
     frames_per_second = ticks_per_second/Float32(ticks_per_frame)
     
     pos = floor(Int, time * (time_base.den / ticks_per_frame))
-    println("seeking to time $(time)s at position $pos (frame rate $frames_per_second/sec)")
+    println("seeking ahead $(time) sec by increasing position $pos (frame rate $frames_per_second/sec)")
 
     # Seek
     # pos (aka Timestamp) is in AVStream.time_base units or, if no stream is specified, in AV_TIME_BASE units.
@@ -44,7 +44,9 @@ function duration(avin::VideoIO.AVInput, video_stream = 1)
     ticks_per_frame = stream_info.codec_ctx.ticks_per_frame
     frames_per_second = ticks_per_second/Float32(ticks_per_frame)
     frame_count = stream_info.stream.nb_frames
-    return Float32(frame_count) / frames_per_second
+    d = Float32(frame_count) / frames_per_second
+    println("duration $d - frame_count $frame_count, fps $frames_per_second tps $ticks_per_second tpf $ticks_per_frame time_base $time_base")
+    d
 end
 duration(s::VideoIO.VideoReader, video_stream=1) = duration(s.avin, video_stream)
 

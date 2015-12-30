@@ -152,13 +152,12 @@ const tpl = `
 		<h2>Step 5: Object Detection</h2>
 		<p>The threshold must be set for what size triggers vehicle detection.</p>
 		<p>Three frames have been randomly selected as examples.</p>
-		<div class="row">
-		<img src="{{.Response.Step5Img}}" id="mousemove">
+		<p>Background Image:</p>
+		<img src="{{.Response.BackgroundImg}}" style="width: 50%; height: 50%;">
 	{{ end }}
 	
 	{{ if eq .Step "step_six"}}
 		<h2>Step 6: Speed Detection</h2>
-		
 	{{ end }}
 	
 	</form>
@@ -234,6 +233,7 @@ type Response struct {
 	Step4Img          template.URL `json:"step_4_img,omitempty"`
 	Step4MaskImg      template.URL `json:"step_4_mask_img,omitempty"`
 	Step5Img          template.URL `json:"step_5_img,omitempty"`
+	BackgroundImg     template.URL `json:"background_img,omitempty"`
 }
 
 func (p *Project) getStep() string {
