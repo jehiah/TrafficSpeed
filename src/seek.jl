@@ -13,23 +13,18 @@ function Base.seek(avin::VideoIO.AVInput, time, video_stream = 1)
     # AVFormatContext
     fc = avin.apFormatContext[1]
 
-    # Get stream information
     stream_info = avin.video_info[video_stream]
-    seek_stream_index = stream_info.stream_index0
-    stream = stream_info.stream
-    time_base = stream_info.codec_ctx.time_base
-    ticks_per_frame = stream_info.codec_ctx.ticks_per_frame
-    
-    # time_base.den - ticks per second
-    ticks_per_second = Float32(time_base.den)/ Float32(time_base.num)
-    frames_per_second = ticks_per_second/Float32(ticks_per_frame)
-    
-    pos = floor(Int, time * (time_base.den / ticks_per_frame))
-    println("seeking ahead $(time) sec by increasing position $pos (frame rate $frames_per_second/sec)")
+
+    s = stream_info.stream
+    c = stream_info.codec_ctx
+    base_per_frame = (c.time_base.num * c.ticks_per_frame * s.time_base.den / c.time_base.den * s.time_base.num)
+    avg_frame_rate = s.avg_frame_rate.num / s.avg_frame_rate.den
+    pos = floor(Int, time * base_per_frame * avg_frame_rate)
+    println("seeking ahead $(time) sec by increasing position $pos (frame rate $avg_frame_rate/sec)")
 
     # Seek
     # pos (aka Timestamp) is in AVStream.time_base units or, if no stream is specified, in AV_TIME_BASE units.
-    ret = VideoIO.av_seek_frame(fc, seek_stream_index, pos, VideoIO.AVSEEK_FLAG_ANY)
+    ret = VideoIO.av_seek_frame(fc, stream_info.stream_index0, pos, VideoIO.AVSEEK_FLAG_ANY)
     
     ret < 0 && throw(ErrorException("Could not seek to position of stream"))
 
@@ -38,15 +33,7 @@ end
 
 function duration(avin::VideoIO.AVInput, video_stream = 1)
     stream_info = avin.video_info[video_stream]
-    time_base = stream_info.codec_ctx.time_base
-
-    ticks_per_second = Float32(time_base.den)/ Float32(time_base.num)
-    ticks_per_frame = stream_info.codec_ctx.ticks_per_frame
-    frames_per_second = ticks_per_second/Float32(ticks_per_frame)
-    frame_count = stream_info.stream.nb_frames
-    d = Float32(frame_count) / frames_per_second
-    println("duration $d - frame_count $frame_count, fps $frames_per_second tps $ticks_per_second tpf $ticks_per_frame time_base $time_base")
-    d
+    return stream_info.stream.duration / stream_info.stream.time_base.den
 end
 duration(s::VideoIO.VideoReader, video_stream=1) = duration(s.avin, video_stream)
 
