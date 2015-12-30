@@ -40,7 +40,11 @@ const tpl = `
 
 	{{ if .Filename}}
 		<h2>Step 1: Video File</h2>
-		<p><code>{{.Filename}}</code> Frames:<code>{{.Response.Frames}}</code> Duration:<code>{{.Response.Duration | printf "%0.1f"}}seconds</code></p>
+		<p><code>{{.Filename}}</code> 
+			Frames: <code>{{.Response.Frames}}</code> 
+			Duration: <code>{{.Response.Duration | printf "%0.1f"}} seconds</code>
+			Resolution: <code>{{.Response.VideoResolution}}</code>
+		</p>
 		<input type="hidden" name="filename" value="{{.Filename}}" />
 		<div><img src="{{.Response.Step2Img}}" style="width: 20%; height: 20%;"></div>
 	{{ end }}
@@ -81,7 +85,8 @@ const tpl = `
 
 	{{ if eq .BBox.IsZero false}}
 		<h2>Step 3: Crop</h2>
-		<p>Selected Range <code>{{.BBox}}</code></p>
+		<p>Selected Range <code>{{.BBox}}</code>
+		   Cropped Resolution: <code>{{.Response.CroppedResolution}}</code></p>
 		<input type="hidden" name="bbox" value="{{.BBox}}" />
 		<div><img src="{{.Response.Step4Img}}" style="width: 40%; height: 40%;"></div>
 	{{ end }}
@@ -219,14 +224,16 @@ type Project struct {
 	Response Response `json:"response,omitempty"`
 }
 type Response struct {
-	Err          string       `json:"err,omitempty"`
-	Frames       int64        `json:"frames,omitempty"`
-	Duration     float64      `json:"duration_seconds,omitempty"`
-	Step2Img     template.URL `json:"step_2_img,omitempty"`
-	Step3Img     template.URL `json:"step_3_img,omitempty"`
-	Step4Img     template.URL `json:"step_4_img,omitempty"`
-	Step4MaskImg template.URL `json:"step_4_mask_img,omitempty"`
-	Step5Img     template.URL `json:"step_5_img,omitempty"`
+	Err               string       `json:"err,omitempty"`
+	Frames            int64        `json:"frames,omitempty"`
+	Duration          float64      `json:"duration_seconds,omitempty"`
+	VideoResolution   string       `json:"video_resolution,omitempty"`
+	CroppedResolution string       `json:"cropped_resolution,omitempty"`
+	Step2Img          template.URL `json:"step_2_img,omitempty"`
+	Step3Img          template.URL `json:"step_3_img,omitempty"`
+	Step4Img          template.URL `json:"step_4_img,omitempty"`
+	Step4MaskImg      template.URL `json:"step_4_mask_img,omitempty"`
+	Step5Img          template.URL `json:"step_5_img,omitempty"`
 }
 
 func (p *Project) getStep() string {
