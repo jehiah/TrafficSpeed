@@ -47,7 +47,7 @@ http = HttpHandler() do req::Request, res::Response
         resp["step_2_size"] = "$(size(img.data, 1))x$(size(img.data, 2))"
         # println("img is $(resp["step_two_size"])")
 
-        if haskey(job, "rotate")
+        if haskey(job, "rotate") && job["rotate"] != 0.00001
             println("rotating $(job["rotate"])")
             println("$(summary(img))")
             img = rotate(img, job["rotate"])

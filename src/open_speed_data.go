@@ -65,6 +65,7 @@ const tpl = `
 		<p>Instructions: Click on the image below to select two points on the axis of movement. 
 		Typically this will be a lane marking in the middle of the street at either end of the visible range. 
 		After selecting "point1" and "point2" select the "Continue" button.</h2>
+		<p>To skip rotation enter 0x0 as both points.</p>
 
 		<div class="form-group">
 			<label>Point 1: <input name="point1" id="point1" type="text" /></label>
@@ -278,73 +279,6 @@ func ParseMask(s string) (m Mask, ok bool) {
 		ok = !m.BBox.IsZero()
 	}
 	return
-}
-
-type BBox struct {
-	A Point `json:"a"`
-	B Point `json:"b"`
-}
-
-func ParseBBox(s string) (b *BBox) {
-	s = strings.TrimSpace(s)
-	if !strings.Contains(s, "x") || !strings.Contains(s, " ") {
-		return nil
-	}
-	b = &BBox{}
-	c := strings.SplitN(s, " ", 2)
-	p1 := ParsePoint(c[0])
-	p2 := ParsePoint(c[1])
-	// for a bounding box, always top left and bottom right
-	b.A.X = math.Min(p1.X, p2.X)
-	b.A.Y = math.Min(p1.Y, p2.Y)
-	b.B.X = math.Max(p1.X, p2.X)
-	b.B.Y = math.Max(p1.Y, p2.Y)
-	return
-}
-
-func (b *BBox) IsZero() bool {
-	if b.A.X == 0 && b.A.Y == 0 && b.B.X == 0 && b.B.Y == 0 {
-		return true
-	}
-	return false
-}
-func (b *BBox) String() string {
-	return fmt.Sprintf("%s %s", b.A, b.B)
-}
-
-type Point struct {
-	X float64 `json:"x"`
-	Y float64 `json:"y"`
-}
-
-func (p Point) String() string {
-	return fmt.Sprintf("%dx%d", int64(p.X), int64(p.Y))
-}
-
-func ParsePoint(s string) (p Point) {
-	s = strings.TrimSpace(s)
-	if !strings.Contains(s, "x") {
-		return
-	}
-	c := strings.SplitN(s, "x", 2)
-	x, _ := strconv.Atoi(c[0])
-	y, _ := strconv.Atoi(c[1])
-	return Point{float64(x), float64(y)}
-}
-
-func Radians(a, b Point) float64 {
-	if a.Y == b.Y {
-		return 0
-	}
-
-	adjacent := math.Max(a.X, b.X) - math.Min(a.X, b.X)
-	opposite := math.Max(a.Y, b.Y) - math.Min(a.Y, b.Y)
-	radians := math.Atan(adjacent / opposite)
-	log.Printf("adjacent: %v opposite %v radians %v", adjacent, opposite, radians)
-	if a.Y < b.Y {
-		return (-1 * radians) + 1.570796
-	}
-	return radians
 }
 
 func (p *Project) Run(backend string) error {
