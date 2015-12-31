@@ -97,16 +97,18 @@ http = HttpHandler() do req::Request, res::Response
             end
         end
         
-        # generate a background
-        println("Calculating background image")
-        # background = rrc(f)
-        background = avg_background(f, rrc)
+        if job["step"] == "step_five"
+            # generate a background
+            println("Calculating background image")
+            # background = rrc(f)
+            background = avg_background(f, rrc)
         
-        if haskey(job, "masks")
-            background = mask(background, job["masks"])
-        end
+            if haskey(job, "masks")
+                background = mask(background, job["masks"])
+            end
 
-        resp["background_img"] = base64img("image/png", background)
+            resp["background_img"] = base64img("image/png", background)
+        end
 
         Response(200, jsonContentType, JSON.json(resp))
     else

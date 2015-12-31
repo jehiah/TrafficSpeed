@@ -342,9 +342,6 @@ func main() {
 			p.Rotate = f
 		}
 		p.BBox = ParseBBox(req.Form.Get("bbox"))
-		if p.BBox == nil {
-			p.BBox = &BBox{} // make template easier
-		}
 
 		p1, p2 := req.Form.Get("point1"), req.Form.Get("point2")
 		if p.Rotate == 0 && p1 != "" && p2 != "" {
@@ -368,6 +365,10 @@ func main() {
 		if err != nil {
 			log.Printf("%s", err)
 			p.Err = err
+		}
+
+		if p.BBox == nil {
+			p.BBox = &BBox{} // make template easier
 		}
 
 		err = t.ExecuteTemplate(w, "webpage", p)
