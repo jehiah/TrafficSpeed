@@ -118,7 +118,7 @@ http = HttpHandler() do req::Request, res::Response
             end
             resp["detect_sample_highlight"] = base64img("image/png", labelimg_base(frame, background))
             resp["detect_sample_example"] = base64img("image/png", labelimg_example(frame, background))
-            resp["detect_labels"] = label_components(labelimg(frame, background))
+            resp["detect_labels"] = label(frame, background)
             
         end
 

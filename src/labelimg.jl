@@ -12,26 +12,31 @@ end
 
 function labelimg_base(img::Image, background::Image)
     i = grayim(abs( float32(img) - float32(background)))
-    grayim(convert(Image{ColorTypes.RGB{Float32}}, i))
+    # https://github.com/JuliaIO/ImageMagick.jl/pull/18
+    return map(Clamp01NaN(i), i)
+    # grayim(convert(Image{ColorTypes.RGB{Float32}}, i))
     # grayim(map(ColorTypes.RGB{Float32}, i))
 end
 
 function label(img::Image, background::Image, blur=[3,3], tolerance=0.06)
     i = imfilter_gaussian(grayim(abs((convert(Image{RGB{Float32}}, img) - convert(Image{RGB{Float32}}, background)).^2)),blur) .> tolerance
     i::BitMatrix
-    label_components(mask)
+    label_components(i) # This is like MATLAB's bwlabel
 end
 
+# """
+# Show an image as it is being labeled
+# """
+# function labelimg(img::Image, background::Image, blur=[3,3], tolerance=0.06)
+#     i = imfilter_gaussian(grayim(abs((convert(Image{RGB{Float32}}, img) - convert(Image{RGB{Float32}}, background)).^2)),blur) .> tolerance
+#     return grayim(map(UFixed8, i))
+# end
 
-function labelimg(img::Image, background::Image, blur=[3,3], tolerance=0.06)
-    i = imfilter_gaussian(grayim(abs((convert(Image{RGB{Float32}}, img) - convert(Image{RGB{Float32}}, background)).^2)),blur) .> tolerance
-    return grayim(map(UFixed8, mask))
-    # label_components(...)
-end
-
+"""
+Show an image with labeled (by color) regions
+"""
 function labelimg_example(img::Image, background::Image, blur=[3,3], tolerance=0.06)
-    i = labelimg(img, background, blur, tolerance)
-    labels = label_components(i) # This is like MATLAB's bwlabel
+    labels = label(img, background, blur, tolerance)
     colors = [colorant"black", colorant"red", colorant"yellow", colorant"green", colorant"blue", colorant"orange", colorant"purple", colorant"gray", colorant"brown"]
     Image(map(x->colors[x+1], labels'))
 end
