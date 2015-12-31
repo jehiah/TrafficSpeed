@@ -15,6 +15,7 @@ include("./seek.jl")
 include("./base64img.jl")
 include("./mask.jl")
 include("./background.jl")
+include("./labelimg.jl")
 
 jsonContentType = Dict{AbstractString,AbstractString}([("Content-Type", "application/json")])
 
@@ -103,11 +104,22 @@ http = HttpHandler() do req::Request, res::Response
             # background = rrc(f)
             background = avg_background(f, rrc)
         
+            resp["background_img"] = base64img("image/png", background)
+
             if haskey(job, "masks")
                 background = mask(background, job["masks"])
             end
 
-            resp["background_img"] = base64img("image/png", background)
+            println("detecting image")
+            seek(f, 0)
+            frame = rrc(f)
+            if haskey(job, "masks")
+                frame = mask(frame, job["masks"])
+            end
+            resp["detect_sample_highlight"] = base64img("image/png", labelimg_base(frame, background))
+            resp["detect_sample_example"] = base64img("image/png", labelimg_example(frame, background))
+            resp["detect_labels"] = label_components(labelimg(frame, background))
+            
         end
 
         Response(200, jsonContentType, JSON.json(resp))

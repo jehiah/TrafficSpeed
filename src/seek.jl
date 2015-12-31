@@ -20,6 +20,7 @@ function Base.seek(avin::VideoIO.AVInput, time, video_stream = 1)
     base_per_frame = (c.time_base.num * c.ticks_per_frame * s.time_base.den / c.time_base.den * s.time_base.num)
     avg_frame_rate = s.avg_frame_rate.num / s.avg_frame_rate.den
     pos = floor(Int, time * base_per_frame * avg_frame_rate)
+    println("c.time_base $(c.time_base) s.time_base $(s.time_base)")
     println("seeking ahead $(time) sec by increasing position $pos (frame rate $avg_frame_rate/sec)")
 
     # Seek
