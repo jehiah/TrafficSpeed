@@ -37,6 +37,12 @@ Show an image with labeled (by color) regions
 """
 function labelimg_example(img::Image, background::Image, blur=[3,3], tolerance=0.06)
     labels = label(img, background, blur, tolerance)
-    colors = [colorant"black", colorant"red", colorant"yellow", colorant"green", colorant"blue", colorant"orange", colorant"purple", colorant"gray", colorant"brown"]
+    # from https://github.com/JuliaGraphics/Colors.jl/blob/master/src/names_data.jl
+    colors = [colorant"black", # this is the background
+            colorant"red", colorant"yellow", colorant"green", colorant"blue", 
+            colorant"orange", colorant"purple", colorant"gray", colorant"brown",
+            colorant"aliceblue", colorant"burlywood", colorant"cadetblue", colorant"cyan",
+            colorant"deeppink", colorant"gold", colorant"fuchsia", colorant"greenyellow",
+            colorant"sandybrown", colorant"salmon", colorant"yellow4", colorant"violetred4"]
     Image(map(x->colors[x+1], labels'))
 end

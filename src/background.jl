@@ -13,10 +13,10 @@ function avg_background(f::VideoIO.VideoReader, rrc::Function)
     println("rrc summary $(summary(bg))")
     # bg = convert(Image{ColorTypes.RGB{Float32}}, frame)
 
-    step = duration(f)/30
+    step = duration(f)/20
     total_pos = 0
     count = 1
-    while count < 30
+    while count < 20
         total_pos += step
         count+=1
         println("generating background: seeking $step to $total_pos for frame $count")

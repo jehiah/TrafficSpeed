@@ -153,10 +153,27 @@ const tpl = `
 		<p>The threshold must be set for what size triggers vehicle detection.</p>
 		<p>Background Image:</p>
 		<img src="{{.Response.BackgroundImg}}" style="width: 50%; height: 50%;">
-		<p>Active Image:</p>
-		<img src="{{.Response.DetectHighlight}}" style="width: 50%; height: 50%;">
-		<p>Detected Areas:</p>
-		<img src="{{.Response.DetectExample}}" style="width: 50%; height: 50%;">
+
+		<div class="form-group">
+			<label>Blur (pixels): <input name="blur" id="blur" type="text" value="{{.Blur}}" /></label>
+		</div>
+		<div class="form-group">
+			<label>Tolerance: <input name="tolerance" id="tolerance" type="text" value="{{.Tolerance}}" /></label>
+		</div>
+		<button type="submit" class="btn">Check</button>
+		<button type="submit" class="btn btn-primary">Continue</button>
+
+		<div class="row">
+		{{ range .Response.FrameAnalysis }}
+		<div class="col-xs-12 col-md-8 col-lg-6">
+			<p>Time index <code>{{.Timestamp}} seconds</code></p>
+			<p>Active Image:</p>
+			<img src="{{.Highlight}}" class="img-responsive">
+			<p>Detected Areas:</p>
+			<img src="{{.Colored}}" class="img-responsive">
+		</div>
+		{{ end }}
+		</div>
 	{{ end }}
 	
 	{{ if eq .Step "step_six"}}
@@ -217,29 +234,37 @@ on("mousemove", "mouseout", function(){
 </html>`
 
 type Project struct {
-	Err      error    `json:"error,omitempty"`
-	Filename string   `json:"filename"`
-	Rotate   float64  `json:"rotate,omitempty"`
-	BBox     *BBox    `json:"bbox,omitempty"`
-	Masks    []Mask   `json:"masks,omitempty"`
+	Err       error   `json:"error,omitempty"`
+	Filename  string  `json:"filename"`
+	Rotate    float64 `json:"rotate,omitempty"`
+	BBox      *BBox   `json:"bbox,omitempty"`
+	Masks     []Mask  `json:"masks,omitempty"`
+	Tolerance float64 `json:"tolerance"`
+	Blur      int64   `json:"blur"`
+
 	Step     string   `json:"step"`
 	Response Response `json:"response,omitempty"`
 }
+
 type Response struct {
-	Err               string       `json:"err,omitempty"`
-	Frames            int64        `json:"frames,omitempty"`
-	Duration          float64      `json:"duration_seconds,omitempty"`
-	VideoResolution   string       `json:"video_resolution,omitempty"`
-	CroppedResolution string       `json:"cropped_resolution,omitempty"`
-	Step2Img          template.URL `json:"step_2_img,omitempty"`
-	Step3Img          template.URL `json:"step_3_img,omitempty"`
-	Step4Img          template.URL `json:"step_4_img,omitempty"`
-	Step4MaskImg      template.URL `json:"step_4_mask_img,omitempty"`
-	Step5Img          template.URL `json:"step_5_img,omitempty"`
-	BackgroundImg     template.URL `json:"background_img,omitempty"`
-	DetectHighlight   template.URL `json:"detect_sample_highlight,omitempty"`
-	DetectExample     template.URL `json:"detect_sample_example,omitempty"`
-	DetectLabels      interface{}  `json:"detect_labels,omitempty"`
+	Err               string          `json:"err,omitempty"`
+	Frames            int64           `json:"frames,omitempty"`
+	Duration          float64         `json:"duration_seconds,omitempty"`
+	VideoResolution   string          `json:"video_resolution,omitempty"`
+	CroppedResolution string          `json:"cropped_resolution,omitempty"`
+	Step2Img          template.URL    `json:"step_2_img,omitempty"`
+	Step3Img          template.URL    `json:"step_3_img,omitempty"`
+	Step4Img          template.URL    `json:"step_4_img,omitempty"`
+	Step4MaskImg      template.URL    `json:"step_4_mask_img,omitempty"`
+	Step5Img          template.URL    `json:"step_5_img,omitempty"`
+	BackgroundImg     template.URL    `json:"background_img,omitempty"`
+	FrameAnalysis     []FrameAnalysis `json:"frame_analysis,omitempty"`
+}
+type FrameAnalysis struct {
+	Timestamp float64      `json:"ts"`
+	Highlight template.URL `json:"highlight,omitempty"`
+	Colored   template.URL `json:"colored,omitempty"`
+	Labels    interface{}  `json:"labels,omitempty"`
 }
 
 func (p *Project) getStep() string {
@@ -341,11 +366,23 @@ func main() {
 
 		req.ParseForm()
 		p := &Project{
-			Filename: req.Form.Get("filename"),
+			Filename:  req.Form.Get("filename"),
+			Blur:      3,
+			Tolerance: 0.06,
 		}
 
 		if f, err := strconv.ParseFloat(req.Form.Get("rotate"), 64); err == nil {
 			p.Rotate = f
+		}
+		if v := req.Form.Get("tolerance"); v != "" {
+			if f, err := strconv.ParseFloat(v, 64); err == nil {
+				p.Tolerance = f
+			}
+		}
+		if v := req.Form.Get("blur"); v != "" {
+			if i, err := strconv.Atoi(v); err == nil {
+				p.Blur = int64(i)
+			}
 		}
 		p.BBox = ParseBBox(req.Form.Get("bbox"))
 

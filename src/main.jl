@@ -109,16 +109,28 @@ http = HttpHandler() do req::Request, res::Response
             if haskey(job, "masks")
                 background = mask(background, job["masks"])
             end
-
-            println("detecting image")
-            seek(f, 0)
-            frame = rrc(f)
-            if haskey(job, "masks")
-                frame = mask(frame, job["masks"])
+            
+            # pick five frames
+            frame_analysis = Array{Any, 1}()
+            i = 0
+            blur_arg=[job["blur"], job["blur"]]
+            while i < 4
+                e = Dict{AbstractString,Any}()
+                pos = i * (duration(f)/5) # increment by a smaller fraction so we don't get the last frame
+                println("analyzing frame at $pos seconds")
+                e["ts"] = pos
+                seek(f, pos)
+                frame = rrc(f)
+                if haskey(job, "masks")
+                    frame = mask(frame, job["masks"])
+                end
+                e["highlight"] = base64img("image/png", labelimg_base(frame, background))
+                e["colored"] = base64img("image/png", labelimg_example(frame, background, blur_arg, job["tolerance"]))
+                # e["labels"] = label(frame, background)
+                push!(frame_analysis, e)
+                i += 1
             end
-            resp["detect_sample_highlight"] = base64img("image/png", labelimg_base(frame, background))
-            resp["detect_sample_example"] = base64img("image/png", labelimg_example(frame, background))
-            resp["detect_labels"] = label(frame, background)
+            resp["frame_analysis"] = frame_analysis
             
         end
 
