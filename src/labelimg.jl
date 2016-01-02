@@ -2,6 +2,8 @@ using Images, Colors
 import Base: .^
 import FixedPointNumbers: UFixed8
 
+include("./mask.jl")
+
 # Absolute value is defined for RGB colors, but it's a little wonky -- it's the *sum* of the absolute values
 # of the components. It is exactly what we want, but it's not defined for arrays of RGBs, so we add that definition here:
 @vectorize_1arg AbstractRGB Base.abs
@@ -18,10 +20,10 @@ function labelimg_base(img::Image, background::Image)
     # grayim(map(ColorTypes.RGB{Float32}, i))
 end
 
-function label(img::Image, background::Image, blur=[3,3], tolerance=0.06)
+function label(img::Image, background::Image, masks::Array, blur=[3,3], tolerance=0.06)
     i = imfilter_gaussian(grayim(abs((convert(Image{RGB{Float32}}, img) - convert(Image{RGB{Float32}}, background)).^2)),blur) .> tolerance
     i::BitMatrix
-    label_components(i) # This is like MATLAB's bwlabel
+    label_components(mask(i, masks)) # This is like MATLAB's bwlabel
 end
 
 # """
@@ -35,8 +37,8 @@ end
 """
 Show an image with labeled (by color) regions
 """
-function labelimg_example(img::Image, background::Image, blur=[3,3], tolerance=0.06)
-    labels = label(img, background, blur, tolerance)
+function labelimg_example(img::Image, background::Image, masks::Array, blur=[3,3], tolerance=0.06)
+    labels = label(img, background, masks, blur, tolerance)
     # from https://github.com/JuliaGraphics/Colors.jl/blob/master/src/names_data.jl
     colors = [colorant"black", # this is the background
             colorant"red", colorant"yellow", colorant"green", colorant"blue", 

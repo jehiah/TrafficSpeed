@@ -59,7 +59,7 @@ const tpl = `
 	{{ if .Rotate }}
 		<h2>Step 2: Rotation</h2>
 		<p>Rotation Angle <code>{{.Rotate}} radians</code></p>
-		<input type="hidden" name="rotate" value="{{.Rotate}}" />
+		<input type="hidden" name="rotate" value="{{.Rotate | printf "%0.5f"}}" />
 		<div><img src="{{.Response.Step3Img}}" style="width: 25%; height: 25%;"></div>
 	{{ end }}
 	
@@ -113,6 +113,9 @@ const tpl = `
 		<h2>Step 4: Mask Regions</h2>
 		<p>Masked regions: {{range .Masks }}<code>{{.}}</code> {{end}}</p>
 		<div><img src="{{.Response.Step4MaskImg}}" style="width: 40%; height: 40%;"></div>
+		{{ range .Masks }}
+			<input type="hidden" name="mask" value="{{.}}" />
+		{{ end }}
 	{{ end }}
 	
 	{{ if eq .Step "step_four" }}
@@ -122,8 +125,8 @@ const tpl = `
 			Depending on the visual perspective the masked rows should be closer to wheel position to account for 
 			tall vehicles in the lane.
 		</p>
-		<p>Instructions: Note the X and Y from the image, and enter masks as a row range <code>row:row</code> 
-			or a bounding box pair of coordinates <code>10x20 20x30</code>. To continue without masks enter a mask of <code>-</code>.</p>
+		<p>Instructions: Note the X and Y from the image, and enter masks as a row range <kbd>row:row</kbd> 
+			or a bounding box pair of coordinates <kbd>10x20 20x30</kbd>. To continue without masks enter a mask of <kbd>-</kbd>.</p>
 
 		<div class="form-group">
 			<label>Mask: <input name="mask" type="text" /></label>
@@ -150,27 +153,54 @@ const tpl = `
 	
 	{{ if eq .Step "step_five" }}
 		<h2>Step 5: Object Detection</h2>
-		<p>The threshold must be set for what size triggers vehicle detection.</p>
-		<p>Background Image:</p>
-		<img src="{{.Response.BackgroundImg}}" style="width: 50%; height: 50%;">
-
-		<div class="form-group">
-			<label>Blur (pixels): <input name="blur" id="blur" type="text" value="{{.Blur}}" /></label>
-		</div>
+		<p>The tunables below adjust what is detected as "active" in an image, and what is treated as a vehicle.</p>
+		
 		<div class="form-group">
 			<label>Tolerance: <input name="tolerance" id="tolerance" type="text" value="{{.Tolerance}}" /></label>
+			<span class="help-block">The required difference from the background.</span>
+		</div>
+		
+		<div class="form-group">
+			<label>Blur (pixels): <input name="blur" id="blur" type="text" value="{{.Blur}}" /></label>
+			<span class="help-block">Bluring helps define features better and make a single blob for better detection.</span>
+		</div>
+		<div class="form-group">
+			<label>Min Mass: <input name="min_mass" id="min_mass" type="text" value="{{.MinMass}}" /></label>
+			<span class="help-block">Filters out small areas that are detected in the image (such as pedestrians).</span>
 		</div>
 		<button type="submit" class="btn">Check</button>
 		<button type="submit" class="btn btn-primary">Continue</button>
 
+		<p>Background Image:</p>
+		<img src="{{.Response.BackgroundImg}}" style="width: 50%; height: 50%;">
+
 		<div class="row">
 		{{ range .Response.FrameAnalysis }}
 		<div class="col-xs-12 col-md-8 col-lg-6">
-			<p>Time index <code>{{.Timestamp}} seconds</code></p>
-			<p>Active Image:</p>
+			<h4>Time index <code>{{.Timestamp}} seconds</code></h4>
+			<p>Active Image: (before masking)</p>
 			<img src="{{.Highlight}}" class="img-responsive">
-			<p>Detected Areas:</p>
+			<p>Detected Areas: (after masking)</p>
 			<img src="{{.Colored}}" class="img-responsive">
+			{{ if .Positions }}
+				<table class="table table-striped">
+				<thead>
+				<tr>
+					<th></th><th>Mass</th><th>Position</th><th>Size</th>
+				</tr>
+				</thead>
+				<tbody>
+				{{ range $i, $p := .Positions }}
+				<tr>
+					<th>{{$i}}</th>
+					<td>{{$p.Mass }} pixels</td>
+					<td>{{$p.X | printf "%0.f"}}x{{$p.Y | printf "%0.f"}}</td>
+					<td>{{$p.Size}}</td>
+				</tr>
+				{{ end }}
+				</tbody>
+				</table>
+			{{ end }}
 		</div>
 		{{ end }}
 		</div>
@@ -241,6 +271,7 @@ type Project struct {
 	Masks     []Mask  `json:"masks,omitempty"`
 	Tolerance float64 `json:"tolerance"`
 	Blur      int64   `json:"blur"`
+	MinMass   int64   `json:"min_mass"`
 
 	Step     string   `json:"step"`
 	Response Response `json:"response,omitempty"`
@@ -264,7 +295,36 @@ type FrameAnalysis struct {
 	Timestamp float64      `json:"ts"`
 	Highlight template.URL `json:"highlight,omitempty"`
 	Colored   template.URL `json:"colored,omitempty"`
-	Labels    interface{}  `json:"labels,omitempty"`
+	Positions []Position   `json:"positions,omitempty"`
+}
+
+// Position matches Position in position.jl
+type Position struct {
+	X     float64 `json:"x"`
+	Y     float64 `json:"y"`
+	Mass  int     `json:"mass"`
+	XSpan []int   `json:"xspan"` // [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+	YSpan []int   `json:"yspan"`
+}
+
+func (p Position) Span() string {
+	mm := func(d []int) (min int, max int) {
+		for i, n := range d {
+			if n < min || i == 0 {
+				min = n
+			}
+			if n > max || i == 0 {
+				max = n
+			}
+		}
+		return
+	}
+	xmin, xmax := mm(p.XSpan)
+	ymin, ymax := mm(p.YSpan)
+	return fmt.Sprintf("x:%d-%d y:%d-%d", xmin, xmax, ymin, ymax)
+}
+func (p Position) Size() string {
+	return fmt.Sprintf("%dx%d", len(p.XSpan), len(p.YSpan))
 }
 
 func (p *Project) getStep() string {
@@ -360,15 +420,18 @@ func (p *Project) Run(backend string) error {
 func main() {
 	backend := flag.String("backend", "http://127.0.0.1:8000", "base path to backend processing service")
 	flag.Parse()
+
+	t := template.Must(template.New("webpage").Parse(tpl))
+
 	http.Handle("/data/", http.StripPrefix("/data/", http.FileServer(http.Dir("../data/"))))
 	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-		t := template.Must(template.New("webpage").Parse(tpl))
 
 		req.ParseForm()
 		p := &Project{
 			Filename:  req.Form.Get("filename"),
 			Blur:      3,
 			Tolerance: 0.06,
+			MinMass:   100,
 		}
 
 		if f, err := strconv.ParseFloat(req.Form.Get("rotate"), 64); err == nil {
@@ -382,6 +445,11 @@ func main() {
 		if v := req.Form.Get("blur"); v != "" {
 			if i, err := strconv.Atoi(v); err == nil {
 				p.Blur = int64(i)
+			}
+		}
+		if v := req.Form.Get("min_mass"); v != "" {
+			if i, err := strconv.Atoi(v); err == nil {
+				p.MinMass = int64(i)
 			}
 		}
 		p.BBox = ParseBBox(req.Form.Get("bbox"))

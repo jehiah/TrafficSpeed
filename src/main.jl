@@ -16,6 +16,7 @@ include("./base64img.jl")
 include("./mask.jl")
 include("./background.jl")
 include("./labelimg.jl")
+include("./positions.jl")
 
 jsonContentType = Dict{AbstractString,AbstractString}([("Content-Type", "application/json")])
 
@@ -42,7 +43,7 @@ http = HttpHandler() do req::Request, res::Response
         f = VideoIO.openvideo(io)
         resp["frames"] = length(f)
         resp["duration_seconds"] = duration(f)
-        println("$(resp["frames"])frames, duration: $(resp["duration_seconds"]) seconds")
+        video_summary(f)
 
         img = read(f, Image)
         resp["video_resolution"] = "$(size(img.data, 1))x$(size(img.data, 2))"
@@ -51,7 +52,6 @@ http = HttpHandler() do req::Request, res::Response
 
         println("Generating overview image (step 2)")
         resp["step_2_img"] = base64img("image/png", img)
-        # println("img is $(resp["step_two_size"])")
 
         if haskey(job, "rotate") && job["rotate"] != 0.00001
             println("Rotating $(job["rotate"]) radians")
@@ -62,11 +62,11 @@ http = HttpHandler() do req::Request, res::Response
         resp["step_3_img"] = base64img("image/png", img)
 
         if haskey(job, "bbox")
-            println("cropping to $(job["bbox"])")
+            println("cropping to [$(job["bbox"]["a"]["x"]):$(job["bbox"]["b"]["x"]), $(job["bbox"]["a"]["y"]):$(job["bbox"]["b"]["y"])]")
             # println("before crop $(summary(img))")
             job["bbox_region"] = (job["bbox"]["a"]["x"]:job["bbox"]["b"]["x"], job["bbox"]["a"]["y"]:job["bbox"]["b"]["y"])
             img = crop(img, job["bbox_region"])
-            println("after crop $(summary(img))")
+            println("Cropped image is $(summary(img))")
         else
             # set crop region to no-op size
             job["bbox_region"] = (1:size(img.data,1), 1:size(img.data, 2))
@@ -75,8 +75,8 @@ http = HttpHandler() do req::Request, res::Response
         
         resp["step_4_img"] = base64img("image/png", img)
         if haskey(job, "masks")
-            println("Applying masks: $(job["masks"])")
-            masked = mask(img, job["masks"])
+            # println("Applying masks: $(job["masks"])")
+            masked = mask_img(img, job["masks"])
             resp["step_4_mask_img"] = base64img("image/png", masked)
         end
         
@@ -105,28 +105,30 @@ http = HttpHandler() do req::Request, res::Response
             background = avg_background(f, rrc)
         
             resp["background_img"] = base64img("image/png", background)
-
-            if haskey(job, "masks")
-                background = mask(background, job["masks"])
-            end
             
             # pick five frames
             frame_analysis = Array{Any, 1}()
             i = 0
             blur_arg=[job["blur"], job["blur"]]
+            if haskey(job, "masks")
+                mask_args = job["masks"]
+            else
+                mask_args = Array{Any,1}()
+            end
+
             while i < 4
                 e = Dict{AbstractString,Any}()
-                pos = i * (duration(f)/5) # increment by a smaller fraction so we don't get the last frame
+                pos = floor(Int, i * (duration(f)/5)) # increment by a smaller fraction so we don't get the last frame
                 println("analyzing frame at $pos seconds")
                 e["ts"] = pos
                 seek(f, pos)
                 frame = rrc(f)
-                if haskey(job, "masks")
-                    frame = mask(frame, job["masks"])
-                end
+
                 e["highlight"] = base64img("image/png", labelimg_base(frame, background))
-                e["colored"] = base64img("image/png", labelimg_example(frame, background, blur_arg, job["tolerance"]))
-                # e["labels"] = label(frame, background)
+                e["colored"] = base64img("image/png", labelimg_example(frame, background, mask_args, blur_arg, job["tolerance"]))
+                e["positions"] = positions(label(frame, background, mask_args, blur_arg, job["tolerance"]))
+                # println("$i positions json is $(JSON.json(e["positions"]))")
+                
                 push!(frame_analysis, e)
                 i += 1
             end

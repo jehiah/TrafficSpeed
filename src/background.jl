@@ -10,7 +10,7 @@ read 10 random frames and generate a background from the averages
 function avg_background(f::VideoIO.VideoReader, rrc::Function)
     seekstart(f)
     bg = float32(convert(Image{ColorTypes.RGB{Float32}}, rrc(f)))
-    println("rrc summary $(summary(bg))")
+    # println("rrc summary $(summary(bg))")
     # bg = convert(Image{ColorTypes.RGB{Float32}}, frame)
 
     step = duration(f)/20
@@ -19,7 +19,7 @@ function avg_background(f::VideoIO.VideoReader, rrc::Function)
     while count < 20
         total_pos += step
         count+=1
-        println("generating background: seeking $step to $total_pos for frame $count")
+        println("background frame $count @ $total_pos seconds")
         seek(f, total_pos)
         frame = float32(rrc(f))
         bg += frame
