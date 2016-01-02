@@ -38,32 +38,24 @@ const tpl = `
 		<div class="alert alert-danger" role="alert">{{.Response.Err}}</div>
 	{{ end }}
 
-	{{ if .Filename}}
+	{{ if eq .Step 1}}
+		<h2>Step 1: Select Video File</h2>
+		<div class="form-group">
+			<label>Filename: <input type="text" name="filename" id="filename" class="form-control" placeholder="filename.mp4" value="{{.Filename}}"></label>
+		</div>
+	{{ else }}
 		<h2>Step 1: Video File</h2>
 		<p><code>{{.Filename}}</code> 
 			Frames: <code>{{.Response.Frames}}</code> 
 			Duration: <code>{{.Response.Duration | printf "%0.1f"}} seconds</code>
 			Resolution: <code>{{.Response.VideoResolution}}</code>
 		</p>
-		<input type="hidden" name="filename" value="{{.Filename}}" />
 		<div><img src="{{.Response.Step2Img}}" style="width: 20%; height: 20%;"></div>
+		<input type="hidden" name="filename" value="{{.Filename}}" />
 	{{ end }}
 	
-	{{ if eq .Step "step_one" }}
-		<h2>Step 1: Select Video File</h2>
-		<div class="form-group">
-			<label>Filename: <input type="text" name="filename" id="filename" class="form-control" placeholder="filename.mp4" value="{{.Filename}}"></label>
-		</div>
-	{{ end }}
-
-	{{ if .Rotate }}
-		<h2>Step 2: Rotation</h2>
-		<p>Rotation Angle <code>{{.Rotate}} radians</code></p>
-		<input type="hidden" name="rotate" value="{{.Rotate | printf "%0.5f"}}" />
-		<div><img src="{{.Response.Step3Img}}" style="width: 25%; height: 25%;"></div>
-	{{ end }}
 	
-	{{ if eq .Step "step_two" }}
+	{{ if eq .Step 2 }}
 		<h2>Step 2: Rotation Detection</h2>
 		<p>Automatic rotation detection works by picking two points that align with the asis of vehicle movement</p>
 		<p>Instructions: Click on the image below to select two points on the axis of movement. 
@@ -80,18 +72,17 @@ const tpl = `
 		<button type="submit" class="btn btn-primary">Continue</button>
 
 		<img src="{{.Response.Step2Img}}" id="getpoint">
+	{{ else if gt .Step 2 }}
+		<h2>Step 2: Rotation</h2>
+		<p>Rotation Angle <code>{{.Rotate}} radians</code></p>
+		<div><img src="{{.Response.Step3Img}}" style="width: 25%; height: 25%;"></div>
+		<input type="hidden" name="rotate" value="{{.Rotate | printf "%0.5f"}}" />
+	{{ else }}
+		<input type="hidden" name="rotate" value="{{.Rotate | printf "%0.5f"}}" />
 	{{ end }}
 
 
-	{{ if eq .BBox.IsZero false}}
-		<h2>Step 3: Crop</h2>
-		<p>Selected Range <code>{{.BBox}}</code>
-		   Cropped Resolution: <code>{{.Response.CroppedResolution}}</code></p>
-		<input type="hidden" name="bbox" value="{{.BBox}}" />
-		<div><img src="{{.Response.Step4Img}}" style="width: 40%; height: 40%;"></div>
-	{{ end }}
-	
-	{{ if eq .Step "step_three" }}
+	{{ if eq .Step 3 }}
 		<h2>Step 3: Crop</h2>
 		<p>Instructions: Click on the image below to select the upper left and lower right corner of the frame 
 		to perform speed analysis on.
@@ -107,18 +98,17 @@ const tpl = `
 		<button type="submit" class="btn btn-primary">Continue</button>
 
 		<img src="{{.Response.Step3Img}}" id="getpoint">
+	{{ else if gt .Step 3 }}
+		<h2>Step 3: Crop</h2>
+		<p>Selected Range <code>{{.BBox}}</code>
+		   Cropped Resolution: <code>{{.Response.CroppedResolution}}</code></p>
+		<div><img src="{{.Response.Step4Img}}" style="width: 40%; height: 40%;"></div>
+		<input type="hidden" name="bbox" value="{{.BBox}}" />
+	{{ else }}
+		<input type="hidden" name="bbox" value="{{.BBox}}" />
 	{{ end }}
 
-	{{ if .Masks }}
-		<h2>Step 4: Mask Regions</h2>
-		<p>Masked regions: {{range .Masks }}<code>{{.}}</code> {{end}}</p>
-		<div><img src="{{.Response.Step4MaskImg}}" style="width: 40%; height: 40%;"></div>
-		{{ range .Masks }}
-			<input type="hidden" name="mask" value="{{.}}" />
-		{{ end }}
-	{{ end }}
-	
-	{{ if eq .Step "step_four" }}
+	{{ if eq .Step 4 }}
 		<h2>Step 4: Mask Regions</h2>
 		<p>Masking allows the detection of vehicles in different lanes to avoid bleeding into each other, 
 			and eliminates irrelevant parts of the image (like sidewalks or parked cars).
@@ -149,9 +139,22 @@ const tpl = `
 		<p>Mouse Position: <span id="mouse_position" style="font-weight:bold;size:14pt;"></span> <span id="mouse_click" style="font-weight:bold;size:14pt;"></span></p>
 
 		<img src="{{.Response.Step4Img}}" id="mousemove">
+	{{ else if gt .Step 4 }}
+		{{ if .Masks }}
+			<h2>Step 4: Mask Regions</h2>
+			<p>Masked regions: {{range .Masks }}<code>{{.}}</code> {{end}}</p>
+			<div><img src="{{.Response.Step4MaskImg}}" style="width: 40%; height: 40%;"></div>
+			{{ range .Masks }}
+				<input type="hidden" name="mask" value="{{.}}" />
+			{{ end }}
+		{{ end }}
+	{{ else }}
+		{{ range .Masks }}
+			<input type="hidden" name="mask" value="{{.}}" />
+		{{ end }}
 	{{ end }}
 	
-	{{ if eq .Step "step_five" }}
+	{{ if eq .Step 5 }}
 		<h2>Step 5: Object Detection</h2>
 		<p>The tunables below adjust what is detected as "active" in an image, and what is treated as a vehicle.</p>
 		
@@ -168,8 +171,8 @@ const tpl = `
 			<label>Min Mass: <input name="min_mass" id="min_mass" type="text" value="{{.MinMass}}" /></label>
 			<span class="help-block">Filters out small areas that are detected in the image (such as pedestrians).</span>
 		</div>
-		<button type="submit" class="btn">Check</button>
-		<button type="submit" class="btn btn-primary">Continue</button>
+		<button type="submit" class="btn" name="next" value="5">Check</button>
+		<button type="submit" class="btn btn-primary" name="next" value="6">Continue</button>
 
 		<p>Background Image:</p>
 		<img src="{{.Response.BackgroundImg}}" style="width: 50%; height: 50%;">
@@ -204,9 +207,21 @@ const tpl = `
 		</div>
 		{{ end }}
 		</div>
+	{{ else if gt .Step 5 }}
+		<h2>Step 5: Object Detection</h2>
+		<p>Tolerance: <code>{{.Tolerance}}</code></p>
+		<p>Blur: <code>{{.Blur}}</code></p>
+		<p>Min Mass: <code>{{.MinMass}}</code></p>
+		<input type="hidden" name="tolerance" value="{{.Tolerance}}" />
+		<input type="hidden" name="blur" value="{{.Blur}}" />
+		<input type="hidden" name="min_mass" value="{{.MinMass}}" />
+	{{ else }}
+		<input type="hidden" name="tolerance" value="{{.Tolerance}}" />
+		<input type="hidden" name="blur" value="{{.Blur}}" />
+		<input type="hidden" name="min_mass" value="{{.MinMass}}" />
 	{{ end }}
 	
-	{{ if eq .Step "step_six"}}
+	{{ if eq .Step 6 }}
 		<h2>Step 6: Speed Detection</h2>
 	{{ end }}
 	
@@ -273,7 +288,7 @@ type Project struct {
 	Blur      int64   `json:"blur"`
 	MinMass   int64   `json:"min_mass"`
 
-	Step     string   `json:"step"`
+	Step     int      `json:"step"`
 	Response Response `json:"response,omitempty"`
 }
 
@@ -327,18 +342,18 @@ func (p Position) Size() string {
 	return fmt.Sprintf("%dx%d", len(p.XSpan), len(p.YSpan))
 }
 
-func (p *Project) getStep() string {
+func (p *Project) getStep() int {
 	switch {
 	case p.Filename == "":
-		return "step_one"
+		return 1
 	case p.Rotate == 0:
-		return "step_two"
+		return 2
 	case p.BBox == nil || p.BBox.IsZero():
-		return "step_three"
+		return 3
 	case len(p.Masks) == 0:
-		return "step_four"
+		return 4
 	default:
-		return "step_five"
+		return 5
 	}
 }
 

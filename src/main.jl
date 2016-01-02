@@ -98,7 +98,7 @@ http = HttpHandler() do req::Request, res::Response
             end
         end
         
-        if job["step"] == "step_five"
+        if job["step"] == 5
             # generate a background
             println("Calculating background image")
             # background = rrc(f)
