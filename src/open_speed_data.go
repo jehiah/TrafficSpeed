@@ -223,6 +223,26 @@ const tpl = `
 	
 	{{ if eq .Step 6 }}
 		<h2>Step 6: Speed Detection</h2>
+		
+		<div class="form-group">
+			<label>Seek (seconds): <input name="seek" id="seek" type="text" /></label>
+		</div>
+
+		{{ if .Seek }}
+		<div class="form-group">
+			<label>Point 1: <input name="point1" id="point1" type="text" /></label>
+		</div>
+		<div class="form-group">
+			<label>Point 2: <input name="point2" id="point2" type="text" /></label>
+		</div>
+		<div class="form-group">
+			<label>Distance (inches): <input name="distance" id="distance" type="text" /></label>
+			<span class="help-block">NV200 wheelbase is 115.2" </span>
+		</div>
+		{{ end }}
+		<button type="submit" class="btn btn-primary" name="next" value="6">Continue</button>
+		
+		<img src="{{.Response.Step4Img}}" id="mousemove">
 	{{ end }}
 	
 	</form>
@@ -287,6 +307,7 @@ type Project struct {
 	Tolerance float64 `json:"tolerance"`
 	Blur      int64   `json:"blur"`
 	MinMass   int64   `json:"min_mass"`
+	Seek      float64 `json:"seek"`
 
 	Step     int      `json:"step"`
 	Response Response `json:"response,omitempty"`
@@ -302,9 +323,9 @@ type Response struct {
 	Step3Img          template.URL    `json:"step_3_img,omitempty"`
 	Step4Img          template.URL    `json:"step_4_img,omitempty"`
 	Step4MaskImg      template.URL    `json:"step_4_mask_img,omitempty"`
-	Step5Img          template.URL    `json:"step_5_img,omitempty"`
 	BackgroundImg     template.URL    `json:"background_img,omitempty"`
 	FrameAnalysis     []FrameAnalysis `json:"frame_analysis,omitempty"`
+	Step6Img          template.URL    `json:"step_6_img,omitempty"`
 }
 type FrameAnalysis struct {
 	Timestamp float64      `json:"ts"`
@@ -342,18 +363,21 @@ func (p Position) Size() string {
 	return fmt.Sprintf("%dx%d", len(p.XSpan), len(p.YSpan))
 }
 
-func (p *Project) getStep() int {
+func (p *Project) SetStep() {
+	if p.Step != 0 {
+		return
+	}
 	switch {
 	case p.Filename == "":
-		return 1
+		p.Step = 1
 	case p.Rotate == 0:
-		return 2
+		p.Step = 2
 	case p.BBox == nil || p.BBox.IsZero():
-		return 3
+		p.Step = 3
 	case len(p.Masks) == 0:
-		return 4
+		p.Step = 4
 	default:
-		return 5
+		p.Step = 5
 	}
 }
 
@@ -395,7 +419,7 @@ func ParseMask(s string) (m Mask, ok bool) {
 }
 
 func (p *Project) Run(backend string) error {
-	p.Step = p.getStep()
+	p.SetStep()
 
 	if p.Filename == "" {
 		return nil
@@ -443,30 +467,31 @@ func main() {
 
 		req.ParseForm()
 		p := &Project{
-			Filename:  req.Form.Get("filename"),
-			Blur:      3,
-			Tolerance: 0.06,
-			MinMass:   100,
+			Filename: req.Form.Get("filename"),
 		}
 
-		if f, err := strconv.ParseFloat(req.Form.Get("rotate"), 64); err == nil {
-			p.Rotate = f
-		}
-		if v := req.Form.Get("tolerance"); v != "" {
-			if f, err := strconv.ParseFloat(v, 64); err == nil {
-				p.Tolerance = f
+		getf64 := func(key string, d float64) float64 {
+			if v := req.Form.Get(key); v != "" {
+				if f, err := strconv.ParseFloat(v, 64); err == nil {
+					return f
+				}
 			}
+			return d
 		}
-		if v := req.Form.Get("blur"); v != "" {
-			if i, err := strconv.Atoi(v); err == nil {
-				p.Blur = int64(i)
+		geti64 := func(key string, d int64) int64 {
+			if v := req.Form.Get(key); v != "" {
+				if i, err := strconv.ParseInt(v, 10, 64); err == nil {
+					return i
+				}
 			}
+			return d
 		}
-		if v := req.Form.Get("min_mass"); v != "" {
-			if i, err := strconv.Atoi(v); err == nil {
-				p.MinMass = int64(i)
-			}
-		}
+
+		p.Rotate = getf64("rotate", 0)
+		p.Tolerance = getf64("tolerance", 0.06)
+		p.Blur = geti64("blur", 3)
+		p.MinMass = geti64("min_mass", 100)
+		p.Seek = getf64("seek", 0)
 		p.BBox = ParseBBox(req.Form.Get("bbox"))
 
 		p1, p2 := req.Form.Get("point1"), req.Form.Get("point2")
@@ -486,6 +511,8 @@ func main() {
 				break
 			}
 		}
+
+		p.Step = int(geti64("next", 0))
 
 		err := p.Run(*backend)
 		if err != nil {

@@ -133,8 +133,16 @@ http = HttpHandler() do req::Request, res::Response
                 i += 1
             end
             resp["frame_analysis"] = frame_analysis
-            
         end
+
+        if job["step"] == 6
+            # we just need to eco back a frame
+            if haskey("seek")
+                seek(f, job["seek"])
+                e["step_6_img"] = base64img("image/png", rrc(f))
+            end
+        end
+
 
         Response(200, jsonContentType, JSON.json(resp))
     else
