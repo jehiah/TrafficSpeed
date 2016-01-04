@@ -9,22 +9,28 @@ function Base.seek(s::VideoIO.VideoReader, time, video_stream=1)
     s
 end
 
+function av_rescale_q(a, bq::VideoIO.AVRational, cq::VideoIO.AVRational)
+    b = bq.num * cq.den
+    c = cq.num * bq.den
+    return a * b / c
+end
+
 function Base.seek(avin::VideoIO.AVInput, time, video_stream = 1)
     # AVFormatContext
     fc = avin.apFormatContext[1]
-
     stream_info = avin.video_info[video_stream]
 
-    s = stream_info.stream
-    c = stream_info.codec_ctx
-    base_per_frame = (c.time_base.num * c.ticks_per_frame * s.time_base.den / c.time_base.den * s.time_base.num)
-    avg_frame_rate = s.avg_frame_rate.num / s.avg_frame_rate.den
-    pos = floor(Int, time * base_per_frame * avg_frame_rate)
-    println("seeking to $(time) sec @ position $pos (frame rate $avg_frame_rate/sec)")
+    # https://www.ffmpeg.org/doxygen/2.3/group__lavu__time.html
+    seek_target = time * VideoIO.AV_TIME_BASE
 
-    # Seek
+    # http://dranger.com/ffmpeg/functions.html#av_rescale_q
+    # seek_target= av_rescale_q(seek_target, AV_TIME_BASE_Q, pFormatCtx->streams[stream_index]->time_base);
+    seek_target = floor(Int, av_rescale_q(seek_target, VideoIO.AVUtil.AV_TIME_BASE_Q, stream_info.stream.time_base))
+    
     # pos (aka Timestamp) is in AVStream.time_base units or, if no stream is specified, in AV_TIME_BASE units.
-    ret = VideoIO.av_seek_frame(fc, stream_info.stream_index0, pos, VideoIO.AVSEEK_FLAG_ANY)
+    # https://www.ffmpeg.org/doxygen/2.5/group__lavf__decoding.html#gaa23f7619d8d4ea0857065d9979c75ac8
+    # http://dranger.com/ffmpeg/functions.html#av_seek_frame
+    ret = VideoIO.av_seek_frame(fc, stream_info.stream_index0, seek_target, VideoIO.AVSEEK_FLAG_ANY)
     
     ret < 0 && throw(ErrorException("Could not seek to position of stream"))
 

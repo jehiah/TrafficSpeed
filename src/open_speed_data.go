@@ -225,7 +225,7 @@ const tpl = `
 		<h2>Step 6: Speed Detection</h2>
 		
 		<div class="form-group">
-			<label>Seek (seconds): <input name="seek" id="seek" type="text" /></label>
+			<label>Seek (seconds): <input name="seek" id="seek" type="text" value="{{.Seek}}" /></label>
 		</div>
 
 		{{ if .Seek }}
@@ -242,7 +242,7 @@ const tpl = `
 		{{ end }}
 		<button type="submit" class="btn btn-primary" name="next" value="6">Continue</button>
 		
-		<img src="{{.Response.Step4Img}}" id="mousemove">
+		<img src="{{.Response.Step6Img}}" id="mousemove">
 	{{ end }}
 	
 	</form>

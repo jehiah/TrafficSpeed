@@ -89,11 +89,15 @@ http = HttpHandler() do req::Request, res::Response
         # inline read, rotate, crop w/ access to job
         function rrc(f::VideoIO.VideoReader)
             # _buffer is a 3-dimensional array (color x width x height), but by reinterpreting
-            VideoIO.retrieve!(f, _rrc_buffer)
+            VideoIO.read!(f, _rrc_buffer)
+            # read!(f, img)
+            # buffer = read(f, Image)
             if haskey(job, "rotate") && job["rotate"] != 0.00001
+                # Image(rotate_and_crop(buffer, job["rotate"], job["bbox_region"]), Dict("spatialorder"=>["x","y"]))
                 Image(rotate_and_crop(reinterpret(ColorTypes.RGB{FixedPointNumbers.UFixed{UInt8, 8}}, _rrc_buffer), job["rotate"], job["bbox_region"]), Dict("spatialorder"=>["x","y"]))
             else
                 # just crop it (even if it's not really being cropped)
+                # Image(Base.unsafe_getindex(buffer, job["bbox_region"][1], job["bbox_region"][2]), Dict("spatialorder"=>["x","y"]))
                 Image(Base.unsafe_getindex(reinterpret(ColorTypes.RGB{FixedPointNumbers.UFixed{UInt8, 8}}, _rrc_buffer), job["bbox_region"][1], job["bbox_region"][2]), Dict("spatialorder"=>["x","y"]))
             end
         end
@@ -137,9 +141,9 @@ http = HttpHandler() do req::Request, res::Response
 
         if job["step"] == 6
             # we just need to eco back a frame
-            if haskey("seek")
+            if haskey(job, "seek")
                 seek(f, job["seek"])
-                e["step_6_img"] = base64img("image/png", rrc(f))
+                resp["step_6_img"] = base64img("image/png", rrc(f))
             end
         end
 

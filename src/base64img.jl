@@ -2,11 +2,16 @@ using Images
 import ImageMagick
 
 function base64img(m::MIME, i::Image)
-    Images.save("/tmp/base64img.png", i)
-    f = open("/tmp/base64img.png", "r")
-    body = readall(f)
-    close(f)
-    return "data:$(m);base64,$(base64encode(body))"
+    try
+        Images.save("/tmp/base64img.png", i)
+        f = open("/tmp/base64img.png", "r")
+        body = readall(f)
+        close(f)
+        return "data:$(m);base64,$(base64encode(body))"
+    catch
+        println("$(summary(i))")
+        rethrow() 
+    end
 # this has issues w/ some Images so we won't use it
 # 
 #     buff = IOBuffer()
