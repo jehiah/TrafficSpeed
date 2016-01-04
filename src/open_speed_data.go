@@ -50,7 +50,7 @@ const tpl = `
 			Duration: <code>{{.Response.Duration | printf "%0.1f"}} seconds</code>
 			Resolution: <code>{{.Response.VideoResolution}}</code>
 		</p>
-		<div><img src="{{.Response.Step2Img}}" style="width: 20%; height: 20%;"></div>
+		<div><img src="{{.Response.Overview}}" class="img-responsive"></div>
 		<input type="hidden" name="filename" value="{{.Filename}}" />
 	{{ end }}
 	
@@ -181,10 +181,12 @@ const tpl = `
 		{{ range .Response.FrameAnalysis }}
 		<div class="col-xs-12 col-md-8 col-lg-6">
 			<h4>Time index <code>{{.Timestamp}} seconds</code></h4>
+			<p>Frame: (before masking)</p>
+			<img src="{{.Base}}" class="img-responsive">
 			<p>Active Image: (before masking)</p>
-			<img src="{{.Highlight}}" class="img-responsive">
+			<img src="{{.HighlightGif}}" class="img-responsive">
 			<p>Detected Areas: (after masking)</p>
-			<img src="{{.Colored}}" class="img-responsive">
+			<img src="{{.ColoredGif}}" class="img-responsive">
 			{{ if .Positions }}
 				<table class="table table-striped">
 				<thead>
@@ -212,6 +214,10 @@ const tpl = `
 		<p>Tolerance: <code>{{.Tolerance}}</code></p>
 		<p>Blur: <code>{{.Blur}}</code></p>
 		<p>Min Mass: <code>{{.MinMass}}</code></p>
+
+		<p>Background Image:</p>
+		<img src="{{.Response.BackgroundImg}}" style="width: 50%; height: 50%;">
+
 		<input type="hidden" name="tolerance" value="{{.Tolerance}}" />
 		<input type="hidden" name="blur" value="{{.Blur}}" />
 		<input type="hidden" name="min_mass" value="{{.MinMass}}" />
@@ -319,7 +325,8 @@ type Response struct {
 	Duration          float64         `json:"duration_seconds,omitempty"`
 	VideoResolution   string          `json:"video_resolution,omitempty"`
 	CroppedResolution string          `json:"cropped_resolution,omitempty"`
-	Step2Img          template.URL    `json:"step_2_img,omitempty"`
+	OverviewGif       template.URL    `json:"overview_gif,omitempty"`
+	OverviewImg       template.URL    `json:"overview_img,omitempty"`
 	Step3Img          template.URL    `json:"step_3_img,omitempty"`
 	Step4Img          template.URL    `json:"step_4_img,omitempty"`
 	Step4MaskImg      template.URL    `json:"step_4_mask_img,omitempty"`
@@ -328,10 +335,14 @@ type Response struct {
 	Step6Img          template.URL    `json:"step_6_img,omitempty"`
 }
 type FrameAnalysis struct {
-	Timestamp float64      `json:"ts"`
-	Highlight template.URL `json:"highlight,omitempty"`
-	Colored   template.URL `json:"colored,omitempty"`
-	Positions []Position   `json:"positions,omitempty"`
+	Timestamp    float64      `json:"ts"`
+	Base         template.URL `json:"base,omitempty"`
+	BaseGif      template.URL `json:"base_gif,omitempty"`
+	Highlight    template.URL `json:"highlight,omitempty"`
+	HighlightGif template.URL `json:"highlight_gif,omitempty"`
+	Colored      template.URL `json:"colored,omitempty"`
+	ColoredGif   template.URL `json:"colored_gif,omitempty"`
+	Positions    []Position   `json:"positions,omitempty"`
 }
 
 // Position matches Position in position.jl

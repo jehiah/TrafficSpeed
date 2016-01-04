@@ -31,3 +31,7 @@ function animate(f, n; fps = 20, width=0)
 end
 Base.writemime(io::IO, ::MIME"text/html", g::GIF) = write(io, "<img src=\"data:image/gif;base64,$(base64encode(g.data))\" />")
 Base.write(io::IO, g::GIF) = write(io, g.data)
+
+function base64gif(g::GIF)
+    return "data:image/gif;base64,$(base64encode(g.data))"
+end

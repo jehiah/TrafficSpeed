@@ -17,6 +17,7 @@ include("./mask.jl")
 include("./background.jl")
 include("./labelimg.jl")
 include("./positions.jl")
+include("./gif.jl")
 
 jsonContentType = Dict{AbstractString,AbstractString}([("Content-Type", "application/json")])
 
@@ -51,7 +52,12 @@ http = HttpHandler() do req::Request, res::Response
         # seek(f, job["seek"])
 
         println("Generating overview image (step 2)")
-        resp["step_2_img"] = base64img("image/png", img)
+        resp["overview_img"] = base64img("image/png", img)
+        gif = animate(15, fps=15, width=400) do _
+            read(f, Image) # throw 50% away
+            read(f, Image)
+        end
+        resp["overview_gif"] = base64gif(gif)
 
         if haskey(job, "rotate") && job["rotate"] != 0.00001
             println("Rotating $(job["rotate"]) radians")
@@ -102,14 +108,13 @@ http = HttpHandler() do req::Request, res::Response
             end
         end
         
-        if job["step"] == 5
+        if job["step"] >= 5
             # generate a background
             println("Calculating background image")
-            # background = rrc(f)
-            background = avg_background(f, rrc)
-        
+            background = avg_background(f, rrc, 25)
             resp["background_img"] = base64img("image/png", background)
-            
+        end
+        if job["step"] == 5
             # pick five frames
             frame_analysis = Array{Any, 1}()
             i = 0
@@ -127,12 +132,34 @@ http = HttpHandler() do req::Request, res::Response
                 e["ts"] = pos
                 seek(f, pos)
                 frame = rrc(f)
+                e["base"] = base64img("image/png", frame)
+                # seek(f, pos)
+                # gif = animate(15, fps=15, width=400) do _
+                #     read(f, Image) # throw away 50% of frames
+                #     rrc(f)
+                # end
+                # e["base_gif"] = base64gif(gif)
 
+                seek(f, pos)
                 e["highlight"] = base64img("image/png", labelimg_base(frame, background))
+                gif = animate(15, fps=15, width=400) do _
+                    read(f, Image) # throw away 50% of frames
+                    labelimg_base(rrc(f), background)
+                end
+                e["highlight_gif"] = base64gif(gif)
+
+
                 e["colored"] = base64img("image/png", labelimg_example(frame, background, mask_args, blur_arg, job["tolerance"]))
                 e["positions"] = positions(label(frame, background, mask_args, blur_arg, job["tolerance"]))
                 # println("$i positions json is $(JSON.json(e["positions"]))")
-                
+
+                seek(f, pos)
+                gif = animate(15, fps=15, width=400) do _
+                    read(f, Image) # throw away 50% of frames
+                    labelimg_example(rrc(f), background, mask_args, blur_arg, job["tolerance"])
+                end
+                e["colored_gif"] = base64gif(gif)
+
                 push!(frame_analysis, e)
                 i += 1
             end

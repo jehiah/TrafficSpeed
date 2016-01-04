@@ -46,7 +46,14 @@ function labelimg_example(img::Image, background::Image, masks::Array, blur=[3,3
             colorant"aliceblue", colorant"burlywood", colorant"cadetblue", colorant"cyan",
             colorant"deeppink", colorant"gold", colorant"fuchsia", colorant"greenyellow",
             colorant"yellow3", colorant"red4", colorant"green4",
-            colorant"sandybrown", colorant"salmon", colorant"yellow4", colorant"violetred4"]
+            colorant"sandybrown", colorant"salmon", colorant"yellow4", colorant"violetred4",
+            colorant"red", colorant"yellow", colorant"green", colorant"blue", 
+            colorant"orange", colorant"purple", colorant"gray", colorant"brown",
+            colorant"aliceblue", colorant"burlywood", colorant"cadetblue", colorant"cyan",
+            colorant"deeppink", colorant"gold", colorant"fuchsia", colorant"greenyellow",
+            colorant"yellow3", colorant"red4", colorant"green4",
+            colorant"sandybrown", colorant"salmon", colorant"yellow4", colorant"violetred4",
+            ]
     if maximum(labels) > length(colors)
         println("error $(maximum(labels)) labels above to $(length(colors))")
         # labels = labels[:length(colors)]

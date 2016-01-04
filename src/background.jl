@@ -5,25 +5,19 @@ import FixedPointNumbers
 include("./seek.jl")
 
 """
-read 10 random frames and generate a background from the averages
+read N random frames and generate a background from the averages
 """
-function avg_background(f::VideoIO.VideoReader, rrc::Function)
+function avg_background(f::VideoIO.VideoReader, rrc::Function, frames::Integer)
     seekstart(f)
     bg = float32(convert(Image{ColorTypes.RGB{Float32}}, rrc(f)))
-    # println("rrc summary $(summary(bg))")
-    # bg = convert(Image{ColorTypes.RGB{Float32}}, frame)
 
-    step = duration(f)/25
-    total_pos = 0
-    count = 1
-    while count < 25
-        total_pos += step
-        count+=1
-        println("background frame $count @ $total_pos seconds")
-        seek(f, total_pos)
+    step = duration(f)/frames
+    for count=1:frames-1 # -1 so we don't overflow seek, but also because we started w/ frame 0 as base
+        println("background frame $count @ $(count*step) seconds")
+        seek(f, count*step)
         frame = float32(rrc(f))
         bg += frame
     end
-    bg /= count
+    bg /= frames
     convert(Image{ColorTypes.RGB{Float32}}, bg)
 end
