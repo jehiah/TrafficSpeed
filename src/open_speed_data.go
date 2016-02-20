@@ -50,7 +50,7 @@ const tpl = `
 			Duration: <code>{{.Response.Duration | printf "%0.1f"}} seconds</code>
 			Resolution: <code>{{.Response.VideoResolution}}</code>
 		</p>
-		<div><img src="{{.Response.Overview}}" class="img-responsive"></div>
+		<div><img src="{{.Response.OverviewImg}}" class="img-responsive"></div>
 		<input type="hidden" name="filename" value="{{.Filename}}" />
 	{{ end }}
 	
@@ -228,27 +228,39 @@ const tpl = `
 	{{ end }}
 	
 	{{ if eq .Step 6 }}
-		<h2>Step 6: Speed Detection</h2>
+		<h2>Step 6: Speed Calibration</h2>
+		
+		<p>Calibrations: {{range .Calibrations }}<code>{{.Pretty}}</code><br/>{{end}}</p>
+
+		{{ range .Calibrations }}
+			<input type="hidden" name="calibration" value="{{.}}" />
+		{{ end }}
 		
 		<div class="form-group">
 			<label>Seek (seconds): <input name="seek" id="seek" type="text" value="{{.Seek}}" /></label>
+			<button type="submit" class="btn btn-primary" name="next" value="6">Seek</button>
 		</div>
 
 		{{ if .Seek }}
-		<div class="form-group">
-			<label>Point 1: <input name="point1" id="point1" type="text" /></label>
-		</div>
-		<div class="form-group">
-			<label>Point 2: <input name="point2" id="point2" type="text" /></label>
-		</div>
-		<div class="form-group">
-			<label>Distance (inches): <input name="distance" id="distance" type="text" /></label>
-			<span class="help-block">NV200 wheelbase is 115.2" </span>
-		</div>
+			<div class="form-group">
+				<label>Point 1: <input name="point1" id="point1" type="text" /></label>
+			</div>
+			<div class="form-group">
+				<label>Point 2: <input name="point2" id="point2" type="text" /></label>
+			</div>
+			<div class="form-group">
+				<label>Distance (inches): <input name="inches" id="inches" type="text" /></label>
+				<span class="help-block">NV200 wheelbase is 115.2" </span>
+			</div>
+			<button type="submit" class="btn btn-primary" name="next" value="6">Record Calibration</button>
 		{{ end }}
-		<button type="submit" class="btn btn-primary" name="next" value="6">Continue</button>
+		<button type="submit" class="btn btn-primary" name="next" value="7">Done</button>
 		
-		<img src="{{.Response.Step6Img}}" id="mousemove">
+		<img src="{{.Response.Step6Img}}" id="getpoint">
+	{{ else if gt .Step 6 }}
+		{{ range .Calibrations }}
+			<input type="hidden" name="calibration" value="{{.}}" />
+		{{ end }}
 	{{ end }}
 	
 	</form>
@@ -305,18 +317,55 @@ on("mousemove", "mouseout", function(){
 </html>`
 
 type Project struct {
-	Err       error   `json:"error,omitempty"`
-	Filename  string  `json:"filename"`
-	Rotate    float64 `json:"rotate,omitempty"`
-	BBox      *BBox   `json:"bbox,omitempty"`
-	Masks     []Mask  `json:"masks,omitempty"`
-	Tolerance float64 `json:"tolerance"`
-	Blur      int64   `json:"blur"`
-	MinMass   int64   `json:"min_mass"`
-	Seek      float64 `json:"seek"`
+	Err          error          `json:"error,omitempty"`
+	Filename     string         `json:"filename"`
+	Rotate       float64        `json:"rotate,omitempty"`
+	BBox         *BBox          `json:"bbox,omitempty"`
+	Masks        []Mask         `json:"masks,omitempty"`
+	Tolerance    float64        `json:"tolerance"`
+	Blur         int64          `json:"blur"`
+	MinMass      int64          `json:"min_mass"`
+	Seek         float64        `json:"seek"`
+	Calibrations []*Calibration `json:"calibrations"`
 
 	Step     int      `json:"step"`
 	Response Response `json:"response,omitempty"`
+}
+
+type Calibration struct {
+	Seek   float64 `json:"seek"`
+	A      Point   `json:"a"`
+	B      Point   `json:"b"`
+	Inches float64 `json:"inches"`
+}
+
+func (c *Calibration) String() string {
+	return fmt.Sprintf("%0.4f %s %s %0.4f", c.Seek, c.A, c.B, c.Inches)
+}
+func (c *Calibration) Pretty() string {
+	return fmt.Sprintf("Seek:%0.4fsec Points{%s %s} Inches:%0.4f", c.Seek, c.A, c.B, c.Inches)
+}
+
+func ParseCalibration(s string) (c *Calibration) {
+	s = strings.TrimSpace(s)
+	if !strings.Contains(s, "x") || !strings.Contains(s, " ") {
+		return nil
+	}
+	chunks := strings.SplitN(s, " ", 4)
+
+	c = &Calibration{}
+	var err error
+	c.Seek, err = strconv.ParseFloat(chunks[0], 64)
+	if err != nil {
+		return nil
+	}
+	c.A = ParsePoint(chunks[1])
+	c.B = ParsePoint(chunks[2])
+	c.Inches, err = strconv.ParseFloat(chunks[3], 64)
+	if err != nil {
+		return nil
+	}
+	return
 }
 
 type Response struct {
@@ -334,6 +383,7 @@ type Response struct {
 	FrameAnalysis     []FrameAnalysis `json:"frame_analysis,omitempty"`
 	Step6Img          template.URL    `json:"step_6_img,omitempty"`
 }
+
 type FrameAnalysis struct {
 	Timestamp    float64      `json:"ts"`
 	Base         template.URL `json:"base,omitempty"`
@@ -504,14 +554,35 @@ func main() {
 		p.MinMass = geti64("min_mass", 100)
 		p.Seek = getf64("seek", 0)
 		p.BBox = ParseBBox(req.Form.Get("bbox"))
+		p.Step = int(geti64("next", 0))
+
+		for _, s := range req.Form["calibration"] {
+			c := ParseCalibration(s)
+			if c != nil {
+				p.Calibrations = append(p.Calibrations, c)
+			} else {
+				log.Printf("error parsing calibration %q", s)
+			}
+		}
 
 		p1, p2 := req.Form.Get("point1"), req.Form.Get("point2")
-		if p.Rotate == 0 && p1 != "" && p2 != "" {
-			p.Rotate = Radians(ParsePoint(p1), ParsePoint(p2))
-			log.Printf("calculated rotation radians %v from a:%v b:%v", p.Rotate, p1, p2)
-		} else if p1 != "" && p2 != "" {
-			p.BBox = &BBox{ParsePoint(p1), ParsePoint(p2)}
-			log.Printf("Bounding Box %#v", p.BBox)
+		if p1 != "" && p2 != "" {
+			switch {
+			case p.Rotate == 0:
+				p.Rotate = Radians(ParsePoint(p1), ParsePoint(p2))
+				log.Printf("calculated rotation radians %v from a:%v b:%v", p.Rotate, p1, p2)
+			case p.Step == 6:
+				p.Calibrations = append(p.Calibrations, &Calibration{
+					Seek:   p.Seek,
+					A:      ParsePoint(p1),
+					B:      ParsePoint(p2),
+					Inches: getf64("inches", 0),
+				})
+				p.Seek = 0
+			default:
+				p.BBox = &BBox{ParsePoint(p1), ParsePoint(p2)}
+				log.Printf("Bounding Box %#v", p.BBox)
+			}
 		}
 
 		for i, m := range req.Form["mask"] {
@@ -522,8 +593,6 @@ func main() {
 				break
 			}
 		}
-
-		p.Step = int(geti64("next", 0))
 
 		err := p.Run(*backend)
 		if err != nil {

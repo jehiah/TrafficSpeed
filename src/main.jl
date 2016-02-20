@@ -111,7 +111,13 @@ http = HttpHandler() do req::Request, res::Response
         if job["step"] >= 5
             # generate a background
             println("Calculating background image")
-            background = avg_background(f, rrc, 25)
+            if job["step"] == 5 
+                background = avg_background(f, rrc, 25)
+            else
+                # faster for now
+                background = avg_background(f, rrc, 10)
+            end
+  
             resp["background_img"] = base64img("image/png", background)
         end
         if job["step"] == 5
@@ -172,6 +178,7 @@ http = HttpHandler() do req::Request, res::Response
                 seek(f, job["seek"])
                 resp["step_6_img"] = base64img("image/png", rrc(f))
             end
+            # extract an image for each calibration
         end
 
 
