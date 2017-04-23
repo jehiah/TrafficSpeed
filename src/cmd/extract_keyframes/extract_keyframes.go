@@ -6,7 +6,11 @@ import (
 	"fmt"
 	"log"
 	"flag"
+	"io"
 	"time"
+	"image/png"
+	"os"
+	"path/filepath"
 	
 	"github.com/nareix/joy4/av"
 	"github.com/nareix/joy4/av/avutil"
@@ -20,6 +24,7 @@ func init() {
 
 func main() {
 	name := flag.String("name", "", "filename to extact")
+	outDir := flag.String("dir", "", "dir to output frames")
 	flag.Parse()
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Llongfile)
 	
@@ -41,10 +46,10 @@ func main() {
 		} else if stream.Type().IsVideo() {
 			vstream := stream.(av.VideoCodecData)
 			fmt.Println(vstream.Type(), vstream.Width(), vstream.Height())
-			fmt.Printf("%#v\n", vstream)
+			fmt.Printf("stream[%d] %#v\n", i, vstream)
 			decoders[i], err = ffmpeg.NewVideoDecoder(vstream)
 			if err != nil {
-				log.Fatalf("%s", err)
+				log.Fatalf("NewVideoDecoder error: %s", err)
 			}
 		}
 	}
@@ -53,6 +58,9 @@ func main() {
 		var pkt av.Packet
 		var err error
 		if pkt, err = file.ReadPacket(); err != nil {
+			if err != io.EOF {
+				log.Printf("readPacket err: %s", err)
+			}
 			break
 		}
 		if !streams[pkt.Idx].Type().IsVideo() {
@@ -65,7 +73,14 @@ func main() {
 		if err != nil {
 			log.Fatalf("%s", err)
 		}
-		fmt.Printf("%#v\n", vf.Image)
+		if *outDir != "" {
+			f, err := os.Create(filepath.Join(*outDir, fmt.Sprintf("%06d.png", i)))
+			if err != nil {
+				log.Fatalf("%s", err)
+			}
+			png.Encode(f, &vf.Image)
+			f.Close()
+		}
 		// 
 		// VideoDecoder.Decode(pkt ([]bytes))
 		// VideoDecoder.Image // YCbCr
