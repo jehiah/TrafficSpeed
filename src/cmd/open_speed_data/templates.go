@@ -56,21 +56,15 @@ const tpl = `
 		<div class="alert alert-danger" role="alert">{{.Response.Err}}</div>
 	{{ end }}
 
-	{{ if eq .Step 1}}
-		<h2>Step 1: Select Video File</h2>
-		<div class="form-group">
-			<label>Filename: <input type="text" name="filename" id="filename" class="form-control" placeholder="filename.mp4" value="{{.Filename}}"></label>
-		</div>
-	{{ else }}
-		<h2>Step 1: Video File</h2>
-		<p><code>{{.Filename}}</code> 
-			Frames: <code>{{.Response.Frames}}</code> 
-			Duration: <code>{{.Response.Duration | printf "%0.1f"}} seconds</code>
-			Resolution: <code>{{.Response.VideoResolution}}</code>
-		</p>
-		<div><img src="{{.Response.OverviewImg}}" class="img-responsive"></div>
-		<input type="hidden" name="filename" value="{{.Filename}}" />
-	{{ end }}
+
+	<h2>Step 1: Video File</h2>
+	<p><code>{{.Filename}}</code> 
+		Frames: <code>{{.Frames}}</code> 
+		Duration: <code>{{.Duration}}</code>
+		Resolution: <code>{{.VideoResolution}}</code>
+	</p>
+	<div><img src="{{.Response.OverviewImg}}" class="img-responsive"></div>
+	<input type="hidden" name="filename" value="{{.Filename}}" />
 	
 	
 	{{ if eq .Step 2 }}

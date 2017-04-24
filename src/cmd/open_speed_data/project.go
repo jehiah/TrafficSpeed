@@ -13,8 +13,8 @@ import (
 	"github.com/nareix/joy4/av"
 	"github.com/nareix/joy4/av/avutil"
 	"github.com/nareix/joy4/cgo/ffmpeg"
-	"github.com/nfnt/resize"
 	"github.com/nareix/joy4/format"
+	"github.com/nfnt/resize"
 	// "github.com/nareix/joy4/format/mp4"
 )
 
@@ -22,10 +22,11 @@ func init() {
 	format.RegisterAll()
 }
 
-
 type Project struct {
-	Err          error          `json:"error,omitempty"`
-	Filename     string         `json:"filename"`
+	Err      error  `json:"error,omitempty"`
+	Filename string `json:"filename"`
+
+	// User Inputs
 	Rotate       float64        `json:"rotate,omitempty"`
 	BBox         *BBox          `json:"bbox,omitempty"`
 	Masks        []Mask         `json:"masks,omitempty"`
@@ -35,6 +36,10 @@ type Project struct {
 	Seek         float64        `json:"seek"`
 	Calibrations []*Calibration `json:"calibrations"`
 
+	Duration        time.Duration `json:"duration_seconds,omitempty"`
+	VideoResolution string        `json:"video_resolution,omitempty"`
+	Frames          int64         `json:"frames,omitempty"`
+
 	Step     int      `json:"step"`
 	Response Response `json:"response,omitempty"`
 
@@ -43,12 +48,10 @@ type Project struct {
 
 type Response struct {
 	Err               string          `json:"err,omitempty"`
-	Frames            int64           `json:"frames,omitempty"`
-	Duration          float64         `json:"duration_seconds,omitempty"`
-	VideoResolution   string          `json:"video_resolution,omitempty"`
 	CroppedResolution string          `json:"cropped_resolution,omitempty"`
 	OverviewGif       template.URL    `json:"overview_gif,omitempty"`
 	OverviewImg       template.URL    `json:"overview_img,omitempty"`
+	Step2Img          template.URL    `json:"step_2_img,omitempty"`
 	Step3Img          template.URL    `json:"step_3_img,omitempty"`
 	Step4Img          template.URL    `json:"step_4_img,omitempty"`
 	Step4MaskImg      template.URL    `json:"step_4_mask_img,omitempty"`
@@ -77,10 +80,8 @@ func NewProject(f string) *Project {
 	vstream := streams[0].(av.VideoCodecData)
 
 	return &Project{
-		Filename: f,
-		Response: Response{
-			VideoResolution: fmt.Sprintf("%dx%d", vstream.Width(), vstream.Height()),
-		},
+		Filename:        f,
+		VideoResolution: fmt.Sprintf("%dx%d", vstream.Width(), vstream.Height()),
 
 		demuxer: file,
 	}
@@ -128,14 +129,17 @@ func (p *Project) Run() error {
 			if err != nil {
 				return err
 			}
-			overview := resize.Resize(400, 300, &vf.Image, resize.NearestNeighbor)
+			overview := resize.Thumbnail(400, 300, &vf.Image, resize.NearestNeighbor)
 			p.Response.OverviewImg, err = dataImg(overview)
 			if err != nil {
 				return err
 			}
-			p.Response.Duration = float64(pkt.Time) / float64(time.Second)
-			p.Response.Frames = int64(frame)
+			if p.Step == 2 {
+				p.Response.Step2Img, err = dataImg(&vf.Image)
+			}
 		}
+		p.Duration = pkt.Time
+		p.Frames = int64(frame)
 
 	}
 	return nil
