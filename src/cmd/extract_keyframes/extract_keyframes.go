@@ -1,21 +1,23 @@
 package main
 
-// #cgo LDFLAGS: -L/usr/local/Cellar/ffmpeg/3.3/lib
+// #cgo LDFLAGS="-L/usr/local/Cellar/ffmpeg/3.3/lib"
+// #cgo CGO_CFLAGS="-I/usr/local/Cellar/ffmpeg/3.3/include"
 
 import (
-	"fmt"
-	"log"
 	"flag"
-	"io"
-	"time"
+	"fmt"
 	"image/png"
+	"io"
+	"log"
 	"os"
 	"path/filepath"
-	
+	"time"
+
 	"github.com/nareix/joy4/av"
 	"github.com/nareix/joy4/av/avutil"
-	"github.com/nareix/joy4/format"
 	"github.com/nareix/joy4/cgo/ffmpeg"
+	"github.com/nareix/joy4/format"
+	"github.com/nareix/joy4/format/mp4"
 )
 
 func init() {
@@ -25,9 +27,11 @@ func init() {
 func main() {
 	name := flag.String("name", "", "filename to extact")
 	outDir := flag.String("dir", "", "dir to output frames")
+	frames := flag.Int("frames", -1, "number of frames to extracct")
+	seek := flag.Duration("seek", 0, "seek offset")
 	flag.Parse()
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Llongfile)
-	
+
 	file, err := avutil.Open(*name)
 	if err != nil {
 		log.Fatalf("%s", err)
@@ -54,7 +58,18 @@ func main() {
 		}
 	}
 
-	for i := 0; i < 20; {
+	log.Printf("%T > %T", file, file.(*avutil.HandlerDemuxer).Demuxer)
+
+	if *seek > 0 {
+		dm := file.(*avutil.HandlerDemuxer).Demuxer.(*mp4.Demuxer)
+		log.Printf("should seek %s", *seek)
+		err = dm.SeekToTime(*seek)
+		if err != nil {
+			log.Fatalf("%s", err)
+		}
+	}
+
+	for i := 0; i < *frames || *frames < 0; {
 		var pkt av.Packet
 		var err error
 		if pkt, err = file.ReadPacket(); err != nil {
@@ -68,12 +83,12 @@ func main() {
 		}
 		ms := (pkt.Time / time.Millisecond) * time.Millisecond
 		fmt.Println("pkt", i, streams[pkt.Idx].Type(), ms, "len", len(pkt.Data), "keyframe", pkt.IsKeyFrame)
-		decoder := decoders[pkt.Idx]
-		vf, err := decoder.Decode(pkt.Data)
-		if err != nil {
-			log.Fatalf("%s", err)
-		}
 		if *outDir != "" {
+			decoder := decoders[pkt.Idx]
+			vf, err := decoder.Decode(pkt.Data)
+			if err != nil {
+				log.Fatalf("%s", err)
+			}
 			f, err := os.Create(filepath.Join(*outDir, fmt.Sprintf("%06d.png", i)))
 			if err != nil {
 				log.Fatalf("%s", err)
@@ -81,7 +96,7 @@ func main() {
 			png.Encode(f, &vf.Image)
 			f.Close()
 		}
-		// 
+		//
 		// VideoDecoder.Decode(pkt ([]bytes))
 		// VideoDecoder.Image // YCbCr
 		i++

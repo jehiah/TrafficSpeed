@@ -17,3 +17,14 @@ http://www.nyc.gov/html/dot/html/about/datafeeds.shtml
   > Real Time speed data
 
 http://opentraffic.io/
+
+
+
+# extract keyframes
+
+If the image file is not detected peroperly:
+```
+ffmpeg -i IMG_8491.MOV -an -c copy IMG_8491.m4a
+```
+
+CGO_LDFLAGS="-L/usr/local/Cellar/ffmpeg/3.3/lib" CGO_CFLAGS="-I/usr/local/Cellar/ffmpeg/3.3/include" gb build
