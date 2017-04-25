@@ -5,9 +5,13 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"net"
 	"net/http"
+	"net/url"
+	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type FrameAnalysis struct {
@@ -39,10 +43,17 @@ func (p *Project) SetStep() {
 	}
 }
 
+func OpenInBrowser(l net.Listener) error {
+	u := &url.URL{Scheme: "http", Host: l.Addr().String()}
+	err := exec.Command("/usr/bin/open", u.String()).Run()
+	return err
+}
+
 func main() {
-	fileName := flag.String("file", "", "")
-	flag.Parse()
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Llongfile)
+	fileName := flag.String("file", "", "")
+	httpAddress := flag.String("http-address", ":53001", "http address")
+	flag.Parse()
 
 	if *fileName == "" {
 		log.Fatalf("-file required")
@@ -133,6 +144,19 @@ func main() {
 		}
 	})
 
-	log.Printf("listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Printf("listening on %s", *httpAddress)
+	listener, err := net.Listen("tcp", *httpAddress)
+	if err != nil {
+		log.Fatalf("%s", err)
+	}
+	log.Printf("Running server at %s", listener.Addr())
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		err := OpenInBrowser(listener)
+		if err != nil {
+			log.Println(err)
+		}
+	}()
+	err = http.Serve(listener, nil)
+	log.Printf("%s", err)
 }
