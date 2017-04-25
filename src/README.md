@@ -28,3 +28,11 @@ ffmpeg -i IMG_8491.MOV -an -c copy IMG_8491.m4a
 ```
 
 CGO_LDFLAGS="-L/usr/local/Cellar/ffmpeg/3.3/lib" CGO_CFLAGS="-I/usr/local/Cellar/ffmpeg/3.3/include" gb build
+
+
+# Image libraries
+
+> https://github.com/bamiaux/rez Image resizing in pure Go and SIMD
+http://www.imagemagick.org/Usage/distorts/
+https://godoc.org/github.com/rainycape/magick
+https://godoc.org/gopkg.in/gographics/imagick.v3/imagick#DistortImageMethod

@@ -4,8 +4,10 @@ package main
 // #cgo CGO_CFLAGS="-I/usr/local/Cellar/ffmpeg/3.3/include"
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
+	"image/png"
 	"io"
 	"log"
 	"time"
@@ -16,6 +18,7 @@ import (
 	"github.com/nareix/joy4/format"
 	"github.com/nfnt/resize"
 	// "github.com/nareix/joy4/format/mp4"
+	"gopkg.in/gographics/imagick.v3/imagick"
 )
 
 func init() {
@@ -27,7 +30,7 @@ type Project struct {
 	Filename string `json:"filename"`
 
 	// User Inputs
-	Rotate       float64        `json:"rotate,omitempty"`
+	Rotate       float64        `json:"rotate,omitempty"` // radians
 	BBox         *BBox          `json:"bbox,omitempty"`
 	Masks        []Mask         `json:"masks,omitempty"`
 	Tolerance    float64        `json:"tolerance"`
@@ -137,6 +140,20 @@ func (p *Project) Run() error {
 			if p.Step == 2 {
 				p.Response.Step2Img, err = dataImg(&vf.Image)
 			}
+			if p.Step == 3 {
+				// apply rotation
+				mw := imagick.NewMagickWand()
+				background := imagick.NewPixelWand()
+				background.SetColor("#000000")
+				out := new(bytes.Buffer)
+				png.Encode(out, &vf.Image)
+				mw.ReadImageBlob(out.Bytes())
+				mw.RotateImage(background, RadiansToDegrees(p.Rotate))
+				mw.SetImageFormat("PNG")
+				imgBytes := mw.GetImageBlob()
+				p.Response.Step3Img = dataImgFromBytes(imgBytes)
+			}
+
 		}
 		p.Duration = pkt.Time
 		p.Frames = int64(frame)

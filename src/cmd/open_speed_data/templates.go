@@ -18,15 +18,18 @@ func dataImg(img image.Image) (template.URL, error) {
 	if err != nil {
 		return "", err
 	}
+	return dataImgFromBytes(out.Bytes()), nil
+}
 
+func dataImgFromBytes(b []byte) template.URL {
 	// This now takes a []byte of the buffer and base64 encodes it to a string
 	// Never needing to create the image file all done in memory
-	base64Img := base64.StdEncoding.EncodeToString(out.Bytes())
+	base64Img := base64.StdEncoding.EncodeToString(b)
 
 	//And now you can see the magic happen.
 	// Go ahead and run it then take the output and copy/paste it in your
 	// browser's URL bar, and you'll see your image.
-	return template.URL("data:image/png;base64," + base64Img), nil
+	return template.URL("data:image/png;base64," + base64Img)
 }
 
 func init() {

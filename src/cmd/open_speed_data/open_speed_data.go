@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"gopkg.in/gographics/imagick.v3/imagick"
 )
 
 type FrameAnalysis struct {
@@ -50,6 +52,8 @@ func OpenInBrowser(l net.Listener) error {
 }
 
 func main() {
+	imagick.Initialize()
+	defer imagick.Terminate()
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Llongfile)
 	fileName := flag.String("file", "", "")
 	httpAddress := flag.String("http-address", ":53001", "http address")

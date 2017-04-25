@@ -62,6 +62,13 @@ func ParsePoint(s string) (p Point) {
 
 const SkipRotate = 0.00001
 
+func RadiansToDegrees(rad float64) (deg float64) {
+	deg = rad * 180.0 / math.Pi
+	return
+}
+
+const rightAngelRadians = 1.570796 // 90 degrees
+
 func Radians(a, b Point) float64 {
 	if a.Y == b.Y {
 		return SkipRotate
@@ -71,12 +78,12 @@ func Radians(a, b Point) float64 {
 	opposite := math.Max(a.Y, b.Y) - math.Min(a.Y, b.Y)
 	radians := math.Atan(adjacent / opposite)
 	log.Printf("adjacent: %v opposite %v radians %v", adjacent, opposite, radians)
-	if a.Y < b.Y {
-		adjusted := (-1 * radians) + 1.570796
+	if a.Y > b.Y {
+		adjusted := (-1 * radians) + rightAngelRadians
 		log.Printf("adjusting to %v because %v < %v", adjusted, a, b)
 		return adjusted
 	}
-	adjusted := radians - 1.570796
+	adjusted := radians - rightAngelRadians
 	log.Printf("adjusting to %v because %v > %v", adjusted, a, b)
 	return adjusted
 }
