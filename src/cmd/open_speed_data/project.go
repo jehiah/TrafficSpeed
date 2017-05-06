@@ -54,9 +54,9 @@ type Response struct {
 	CroppedResolution string          `json:"cropped_resolution,omitempty"`
 	OverviewGif       template.URL    `json:"overview_gif,omitempty"`
 	OverviewImg       template.URL    `json:"overview_img,omitempty"`
-	Step2Img          template.URL    `json:"step_2_img,omitempty"`
-	Step3Img          template.URL    `json:"step_3_img,omitempty"`
-	Step4Img          template.URL    `json:"step_4_img,omitempty"`
+	Step2Img          template.URL    `json:"step_2_img,omitempty"` // rotation
+	Step3Img          template.URL    `json:"step_3_img,omitempty"` // crop
+	Step4Img          template.URL    `json:"step_4_img,omitempty"` // mask
 	Step4MaskImg      template.URL    `json:"step_4_mask_img,omitempty"`
 	BackgroundImg     template.URL    `json:"background_img,omitempty"`
 	FrameAnalysis     []FrameAnalysis `json:"frame_analysis,omitempty"`
@@ -140,18 +140,33 @@ func (p *Project) Run() error {
 			if p.Step == 2 {
 				p.Response.Step2Img, err = dataImg(&vf.Image)
 			}
-			if p.Step == 3 {
+			mw := imagick.NewMagickWand()
+			background := imagick.NewPixelWand()
+			background.SetColor("#000000")
+
+			// load image
+			out := new(bytes.Buffer)
+			png.Encode(out, &vf.Image)
+			mw.ReadImageBlob(out.Bytes())
+
+			if p.Step >= 3 {
 				// apply rotation
-				mw := imagick.NewMagickWand()
-				background := imagick.NewPixelWand()
-				background.SetColor("#000000")
-				out := new(bytes.Buffer)
-				png.Encode(out, &vf.Image)
-				mw.ReadImageBlob(out.Bytes())
-				mw.RotateImage(background, RadiansToDegrees(p.Rotate))
+				err = mw.RotateImage(background, RadiansToDegrees(p.Rotate))
+				if err != nil {
+					return err
+				}
 				mw.SetImageFormat("PNG")
 				imgBytes := mw.GetImageBlob()
 				p.Response.Step3Img = dataImgFromBytes(imgBytes)
+			}
+			if p.Step >= 4 {
+				// rotate & crop
+				err = mw.CropImage(uint(p.BBox.Width()), uint(p.BBox.Height()), int(p.BBox.A.X), int(p.BBox.A.Y))
+				if err != nil {
+					return err
+				}
+				imgBytes := mw.GetImageBlob()
+				p.Response.Step4Img = dataImgFromBytes(imgBytes)
 			}
 
 		}

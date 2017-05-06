@@ -36,8 +36,15 @@ func (b *BBox) IsZero() bool {
 	}
 	return false
 }
-func (b *BBox) String() string {
+
+func (b BBox) String() string {
 	return fmt.Sprintf("%s %s", b.A, b.B)
+}
+func (b BBox) Height() float64 {
+	return b.B.Y - b.A.Y
+}
+func (b BBox) Width() float64 {
+	return b.B.X - b.A.X
 }
 
 type Point struct {
