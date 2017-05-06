@@ -149,7 +149,10 @@ const tpl = `
 			<label>Mask: <input name="mask" type="text" /></label>
 		</div>
 
-		<div><button type="submit" class="btn btn-primary">Continue</button></div>
+		<div>
+		<button type="submit" class="btn" name="next" value="4">Check</button>
+		<button type="submit" class="btn btn-primary" name="next" value="5">Continue</button>
+		</div>
 		
 		<p>Mouse Position: <span id="mouse_position" style="font-weight:bold;size:14pt;"></span> <span id="mouse_click" style="font-weight:bold;size:14pt;"></span></p>
 
