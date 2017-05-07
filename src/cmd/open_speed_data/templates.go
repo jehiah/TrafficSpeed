@@ -1,42 +1,10 @@
 package main
 
 import (
-	"bytes"
-	"encoding/base64"
 	"html/template"
-	"image"
-	"image/png"
 )
 
 var Template *template.Template
-
-func dataImg(img image.Image) (template.URL, error) {
-	out := new(bytes.Buffer)
-
-	// We now encode the image we created to the buffer
-	err := png.Encode(out, img)
-	if err != nil {
-		return "", err
-	}
-	return dataImgFromBytes(out.Bytes()), nil
-}
-
-func dataImgFromBytes(b []byte) template.URL {
-	// This now takes a []byte of the buffer and base64 encodes it to a string
-	// Never needing to create the image file all done in memory
-	base64Img := base64.StdEncoding.EncodeToString(b)
-
-	//And now you can see the magic happen.
-	// Go ahead and run it then take the output and copy/paste it in your
-	// browser's URL bar, and you'll see your image.
-	return template.URL("data:image/png;base64," + base64Img)
-}
-
-func init() {
-	Template = template.Must(template.New("webpage").Funcs(template.FuncMap{
-		"DataURI": dataImg,
-	}).Parse(tpl))
-}
 
 const tpl = `
 <!DOCTYPE html>
