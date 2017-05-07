@@ -6,6 +6,12 @@ import (
 
 var Template *template.Template
 
+func init() {
+	Template = template.Must(template.New("webpage").Funcs(template.FuncMap{
+		"DataURI": dataImg,
+	}).Parse(tpl))
+}
+
 const tpl = `
 <!DOCTYPE html>
 <html>
@@ -247,6 +253,10 @@ const tpl = `
 		{{ range .Calibrations }}
 			<input type="hidden" name="calibration" value="{{.}}" />
 		{{ end }}
+	{{ end }}
+	
+	{{ range .Response.DebugImages }}
+		<img src="{{.}}" style="width: 50%; height: 50%;">
 	{{ end }}
 	
 	</form>

@@ -163,17 +163,17 @@ func (p *Project) Run() error {
 			background := imagick.NewPixelWand()
 			background.SetColor("#000000")
 
-			// load image
-			out := new(bytes.Buffer)
-			// grey scale
-			for i := 0; i < len(vf.Image.Cb); i++ {
-				vf.Image.Cb[i] = 128 // aka .5 the zero point
-			}
-			for i := 0; i < len(vf.Image.Cr); i++ {
-				vf.Image.Cr[i] = 128
-			}
+			// // grey scale
+			// for i := 0; i < len(vf.Image.Cb); i++ {
+			// 	vf.Image.Cb[i] = 128 // aka .5 the zero point
+			// }
+			// for i := 0; i < len(vf.Image.Cr); i++ {
+			// 	vf.Image.Cr[i] = 128
+			// }
 			// vf.Image.Cb = make([]uint8, len(vf.Image.Cb))
 			// vf.Image.Cr = make([]uint8, len(vf.Image.Cr))
+			// load image
+			out := new(bytes.Buffer)
 			png.Encode(out, &vf.Image)
 			mw.ReadImageBlob(out.Bytes())
 
@@ -202,9 +202,12 @@ func (p *Project) Run() error {
 		if p.Step == 5 && len(bg) < bgFrameCount && frame%15 == 0 {
 			// calculate the background
 			// background_img
-			var bgframe image.YCbCr = vf.Image
-			bg = append(bg, &bgframe)
-			// debugImg, err := dataImgWithSize(&bgframe, 400, 300)
+			bgframe := image.NewYCbCr(vf.Image.Bounds(), vf.Image.SubsampleRatio)
+			copy(bgframe.Y, vf.Image.Y)
+			copy(bgframe.Cb, vf.Image.Cb)
+			copy(bgframe.Cr, vf.Image.Cr)
+			bg = append(bg, bgframe)
+			// debugImg, err := dataImgWithSize(bgframe, 400, 300)
 			// if err != nil {
 			// 	return err
 			// }
