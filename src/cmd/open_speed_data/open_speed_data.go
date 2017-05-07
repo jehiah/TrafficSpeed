@@ -65,7 +65,11 @@ func main() {
 
 	http.Handle("/data/", http.StripPrefix("/data/", http.FileServer(http.Dir("../data/"))))
 	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-
+		log.Printf("%s %s", req.Method, req.URL)
+		if req.URL.Path != "/" {
+			http.Error(w, "NOT_FOUND", 404)
+			return
+		}
 		req.ParseForm()
 		p := NewProject(*fileName)
 
