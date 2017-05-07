@@ -137,7 +137,7 @@ func (p *Project) Run() error {
 		interested := true
 		switch {
 		case frame == 0:
-		case p.Step == 5 && len(bg) < bgFrameCount && frame%15 == 0:
+		case p.Step == 5 && len(bg) < bgFrameCount && frame%5 == 0:
 		default:
 			interested = false
 		}
@@ -199,14 +199,9 @@ func (p *Project) Run() error {
 				p.Response.Step4Img = dataImgFromBytes(imgBytes)
 			}
 		}
-		if p.Step == 5 && len(bg) < bgFrameCount && frame%15 == 0 {
-			// calculate the background
-			// background_img
-			bgframe := image.NewYCbCr(vf.Image.Bounds(), vf.Image.SubsampleRatio)
-			copy(bgframe.Y, vf.Image.Y)
-			copy(bgframe.Cb, vf.Image.Cb)
-			copy(bgframe.Cr, vf.Image.Cr)
-			bg = append(bg, bgframe)
+		if p.Step == 5 && len(bg) < bgFrameCount && frame%5 == 0 {
+			// queue frames to be used in background calculation
+			bg = append(bg, CopyYCbCr(vf.Image))
 			// debugImg, err := dataImgWithSize(bgframe, 400, 300)
 			// if err != nil {
 			// 	return err
