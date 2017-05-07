@@ -18,7 +18,6 @@ import (
 	"github.com/nareix/joy4/av/avutil"
 	"github.com/nareix/joy4/cgo/ffmpeg"
 	"github.com/nareix/joy4/format"
-	"github.com/nfnt/resize"
 	// "github.com/nareix/joy4/format/mp4"
 	"avgimg"
 	"gopkg.in/gographics/imagick.v3/imagick"
@@ -66,6 +65,8 @@ type Response struct {
 	BackgroundImg     template.URL    `json:"background_img,omitempty"`
 	FrameAnalysis     []FrameAnalysis `json:"frame_analysis,omitempty"`
 	Step6Img          template.URL    `json:"step_6_img,omitempty"`
+
+	DebugImages []template.URL
 }
 
 func NewProject(f string) *Project {
@@ -125,7 +126,9 @@ func (p *Project) Run() error {
 		if pkt, err = p.demuxer.ReadPacket(); err != nil {
 			if err != io.EOF {
 				log.Printf("readPacket err: %s", err)
+				return err
 			}
+			err = nil
 			break
 		}
 		if !streams[pkt.Idx].Type().IsVideo() {
@@ -141,7 +144,6 @@ func (p *Project) Run() error {
 		var vf *ffmpeg.VideoFrame
 		if interested {
 			log.Printf("interested in frame %d %s", frame, pkt.Time)
-			// set overview image
 			decoder := decoders[pkt.Idx]
 			vf, err = decoder.Decode(pkt.Data)
 			if err != nil {
@@ -149,8 +151,8 @@ func (p *Project) Run() error {
 			}
 		}
 		if frame == 0 {
-			overview := resize.Thumbnail(400, 300, &vf.Image, resize.NearestNeighbor)
-			p.Response.OverviewImg, err = dataImg(overview)
+			// set overview image
+			p.Response.OverviewImg, err = dataImgWithSize(&vf.Image, 400, 300)
 			if err != nil {
 				return err
 			}
@@ -202,6 +204,11 @@ func (p *Project) Run() error {
 			// background_img
 			var bgframe image.YCbCr = vf.Image
 			bg = append(bg, &bgframe)
+			// debugImg, err := dataImgWithSize(&bgframe, 400, 300)
+			// if err != nil {
+			// 	return err
+			// }
+			// p.Response.DebugImages = append(p.Response.DebugImages, debugImg)
 		}
 
 		// set every frame, so this ends w/ the last value

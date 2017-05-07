@@ -6,6 +6,8 @@ import (
 	"html/template"
 	"image"
 	"image/png"
+
+	"github.com/nfnt/resize"
 )
 
 func dataImg(img image.Image) (template.URL, error) {
@@ -23,4 +25,9 @@ func dataImg(img image.Image) (template.URL, error) {
 func dataImgFromBytes(b []byte) template.URL {
 	base64Img := base64.StdEncoding.EncodeToString(b)
 	return template.URL("data:image/png;base64," + base64Img)
+}
+
+func dataImgWithSize(img image.Image, width, height uint) (template.URL, error) {
+	overview := resize.Thumbnail(width, height, img, resize.NearestNeighbor)
+	return dataImg(overview)
 }

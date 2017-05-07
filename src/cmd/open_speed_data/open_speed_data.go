@@ -57,6 +57,7 @@ func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Llongfile)
 	fileName := flag.String("file", "", "")
 	httpAddress := flag.String("http-address", ":53001", "http address")
+	skipBrowser := flag.Bool("skip-browser", false, "skip opening browser")
 	flag.Parse()
 
 	if *fileName == "" {
@@ -145,7 +146,6 @@ func main() {
 		if p.BBox == nil {
 			p.BBox = &BBox{} // make template easier
 		}
-
 		err = Template.ExecuteTemplate(w, "webpage", p)
 		if err != nil {
 			log.Printf("%s", err)
@@ -158,13 +158,15 @@ func main() {
 		log.Fatalf("%s", err)
 	}
 	log.Printf("Running server at %s", listener.Addr())
-	go func() {
-		time.Sleep(200 * time.Millisecond)
-		err := OpenInBrowser(listener)
-		if err != nil {
-			log.Println(err)
-		}
-	}()
+	if !*skipBrowser {
+		go func() {
+			time.Sleep(200 * time.Millisecond)
+			err := OpenInBrowser(listener)
+			if err != nil {
+				log.Println(err)
+			}
+		}()
+	}
 	err = http.Serve(listener, nil)
 	log.Printf("%s", err)
 }
