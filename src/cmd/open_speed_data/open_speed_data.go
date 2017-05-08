@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"html/template"
 	"log"
 	"net"
 	"net/http"
@@ -16,16 +15,6 @@ import (
 	"gopkg.in/gographics/imagick.v3/imagick"
 )
 
-type FrameAnalysis struct {
-	Timestamp    float64      `json:"ts"`
-	Base         template.URL `json:"base,omitempty"`
-	BaseGif      template.URL `json:"base_gif,omitempty"`
-	Highlight    template.URL `json:"highlight,omitempty"`
-	HighlightGif template.URL `json:"highlight_gif,omitempty"`
-	Colored      template.URL `json:"colored,omitempty"`
-	ColoredGif   template.URL `json:"colored_gif,omitempty"`
-	Positions    []Position   `json:"positions,omitempty"`
-}
 
 func (p *Project) SetStep() {
 	if p.Step != 0 {
