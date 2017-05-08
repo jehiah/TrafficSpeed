@@ -28,6 +28,7 @@ func init() {
 }
 
 const bgFrameCount = 30
+const bgFrameSkip = 15
 
 type Project struct {
 	Err      error  `json:"error,omitempty"`
@@ -137,7 +138,7 @@ func (p *Project) Run() error {
 		interested := true
 		switch {
 		case frame == 0:
-		case p.Step == 5 && len(bg) < bgFrameCount && frame%5 == 0:
+		case p.Step == 5 && len(bg) < bgFrameCount && frame%bgFrameSkip == 0:
 		default:
 			interested = false
 		}
@@ -152,12 +153,9 @@ func (p *Project) Run() error {
 		}
 		if frame == 0 {
 			// set overview image
-			p.Response.OverviewImg, err = dataImgWithSize(&vf.Image, 400, 300)
-			if err != nil {
-				return err
-			}
+			p.Response.OverviewImg = dataImgWithSize(&vf.Image, 400, 300, "")
 			if p.Step == 2 {
-				p.Response.Step2Img, err = dataImg(&vf.Image)
+				p.Response.Step2Img = dataImg(&vf.Image, "")
 			}
 			mw := imagick.NewMagickWand()
 			background := imagick.NewPixelWand()
@@ -186,7 +184,7 @@ func (p *Project) Run() error {
 				}
 				mw.SetImageFormat("PNG")
 				imgBytes := mw.GetImageBlob()
-				p.Response.Step3Img = dataImgFromBytes(imgBytes)
+				p.Response.Step3Img = dataImgFromBytes("image/png", imgBytes)
 			}
 			if p.Step >= 4 {
 				// rotate & crop
@@ -196,17 +194,15 @@ func (p *Project) Run() error {
 					return err
 				}
 				imgBytes := mw.GetImageBlob()
-				p.Response.Step4Img = dataImgFromBytes(imgBytes)
+				p.Response.Step4Img = dataImgFromBytes("image/png", imgBytes)
 			}
 		}
-		if p.Step == 5 && len(bg) < bgFrameCount && frame%5 == 0 {
+		if p.Step == 5 && len(bg) < bgFrameCount && frame%bgFrameSkip == 0 {
 			// queue frames to be used in background calculation
-			bg = append(bg, CopyYCbCr(vf.Image))
-			// debugImg, err := dataImgWithSize(bgframe, 400, 300)
-			// if err != nil {
-			// 	return err
-			// }
-			// p.Response.DebugImages = append(p.Response.DebugImages, debugImg)
+			bgframe := CopyYCbCr(vf.Image)
+			bg = append(bg, bgframe)
+			debugImg := dataImgWithSize(bgframe, 400, 300, "")
+			p.Response.DebugImages = append(p.Response.DebugImages, debugImg)
 		}
 
 		// set every frame, so this ends w/ the last value
@@ -218,10 +214,7 @@ func (p *Project) Run() error {
 		log.Printf("calculate background from %d frames", len(bg))
 		bgavg = image.NewRGBA(bg.Bounds())
 		draw.Draw(bgavg, bgavg.Bounds(), bg, image.ZP, draw.Over)
-		p.Response.BackgroundImg, err = dataImg(bgavg)
-		if err != nil {
-			return err
-		}
+		p.Response.BackgroundImg = dataImg(bgavg, "")
 	}
 	if p.Step == 5 {
 		// pick 4 slices from the video
