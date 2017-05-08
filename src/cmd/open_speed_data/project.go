@@ -135,18 +135,19 @@ func (p *Project) Run() error {
 		if !streams[pkt.Idx].Type().IsVideo() {
 			continue
 		}
+
 		interested := true
 		switch {
 		case frame == 0:
-		case p.Step == 5 && len(bg) < bgFrameCount && frame%bgFrameSkip == 0:
+		case p.Step == 5 && len(bg) < bgFrameCount:
+			// get all frames until we have a background because frames are dependent on the previous frame
 		default:
 			interested = false
 		}
 		var vf *ffmpeg.VideoFrame
 		if interested {
 			log.Printf("interested in frame %d %s", frame, pkt.Time)
-			decoder := decoders[pkt.Idx]
-			vf, err = decoder.Decode(pkt.Data)
+			vf, err = decoders[pkt.Idx].Decode(pkt.Data)
 			if err != nil {
 				return err
 			}
