@@ -7,6 +7,7 @@ package avgimg
 import (
 	"image"
 	"image/color"
+	"image/draw"
 )
 
 type AvgImage []*image.YCbCr
@@ -42,4 +43,10 @@ func (a AvgImage) Add(i *image.YCbCr) {
 		panic("image bounds don't match")
 	}
 	a = append(a, i)
+}
+
+func (a AvgImage) Image() *image.RGBA {
+	i := image.NewRGBA(a.Bounds())
+	draw.Draw(i, a.Bounds(), a, image.ZP, draw.Over)
+	return i
 }

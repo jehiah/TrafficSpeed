@@ -3,7 +3,6 @@ package main
 import (
 	"html/template"
 	"image"
-	"image/draw"
 	"log"
 	"time"
 )
@@ -34,19 +33,8 @@ func (f *FrameAnalysis) Calculate(bg *image.RGBA) {
 	if len(f.images) == 0 {
 		return
 	}
-	// YCbCr -> RGBA
-	src := f.images[0]
-	b := src.Bounds()
-	m0 := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
-	draw.Draw(m0, m0.Bounds(), src, image.ZP, draw.Src)
-
-	// // YCbCr -> RGBA
-	// src = f.images[1]
-	// b = src.Bounds()
-	// m1 := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
-	// draw.Draw(m1, m1.Bounds(), src, image.ZP, draw.Src)
-
-	highlight := SubImage(m0, bg)
+	src := RGBA(f.images[0])
+	highlight := SubImage(src, bg)
 	// base = first frame
 	// highlight = base - background
 	f.Base = dataImg(f.images[0], "image/png")

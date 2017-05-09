@@ -4,12 +4,9 @@ package main
 // #cgo CGO_CFLAGS="-I/usr/local/Cellar/ffmpeg/3.3/include"
 
 import (
-	"bytes"
 	"fmt"
 	"html/template"
 	"image"
-	"image/draw"
-	"image/png"
 	"io"
 	"log"
 	"time"
@@ -181,10 +178,12 @@ func (p *Project) Run() error {
 			// vf.Image.Cr = make([]uint8, len(vf.Image.Cr))
 			// load image
 
-			out := new(bytes.Buffer)
-			png.Encode(out, &vf.Image)
-			var imgBytes []byte
-			mw.ReadImageBlob(out.Bytes())
+			img := RGBA(&vf.Image)
+			WandSetImage(mw, img)
+			// ExportImagePixels
+			// ImportImagePixels
+			// ConstituteImage
+			// https://godoc.org/gopkg.in/gographics/imagick.v3/imagick#MagickWand.ExportImagePixels
 
 			if p.Step >= 3 {
 				log.Printf("rotating %v", p.Rotate)
@@ -193,9 +192,11 @@ func (p *Project) Run() error {
 				if err != nil {
 					return err
 				}
-				mw.SetImageFormat("PNG")
-				imgBytes := mw.GetImageBlob()
-				p.Response.Step3Img = dataImgFromBytes("image/png", imgBytes)
+				img, err = WandImage(mw)
+				if err != nil {
+					return err
+				}
+				p.Response.Step3Img = dataImg(img, "image/webp")
 			}
 			if p.Step >= 4 {
 				// rotate & crop
@@ -209,17 +210,17 @@ func (p *Project) Run() error {
 				// if err != nil {
 				// 	return err
 				// }
-				imgBytes = mw.GetImageBlob()
-				p.Response.Step4Img = dataImgFromBytes("image/png", imgBytes)
-			}
-			if p.Step >= 5 {
-				// mask
-				maskImg, err := png.Decode(bytes.NewBuffer(imgBytes))
+				img, err = WandImageSize(mw, image.Rect(0, 0, int(p.BBox.Width()), int(p.BBox.Height())))
 				if err != nil {
 					return err
 				}
-				p.Masks.Apply(maskImg)
-				p.Response.Step4MaskImg = dataImg(maskImg, "image/webp")
+				p.Response.Step4Img = dataImg(img, "image/webp")
+				p.Response.CroppedResolution = fmt.Sprintf("%dx%d", int(p.BBox.Width()), int(p.BBox.Height()))
+			}
+			if p.Step >= 5 {
+				// mask
+				p.Masks.Apply(img)
+				p.Response.Step4MaskImg = dataImg(img, "image/webp")
 			}
 		}
 
@@ -246,8 +247,7 @@ func (p *Project) Run() error {
 	var bgavg *image.RGBA
 	if p.Step == 5 && len(bg) > 0 {
 		log.Printf("calculate background from %d frames", len(bg))
-		bgavg = image.NewRGBA(bg.Bounds())
-		draw.Draw(bgavg, bgavg.Bounds(), bg, image.ZP, draw.Over)
+		bgavg = bg.Image()
 		p.Response.BackgroundImg = dataImg(bgavg, "")
 
 	}
