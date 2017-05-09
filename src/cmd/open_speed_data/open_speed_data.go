@@ -15,7 +15,6 @@ import (
 	"gopkg.in/gographics/imagick.v3/imagick"
 )
 
-
 func (p *Project) SetStep() {
 	if p.Step != 0 {
 		return

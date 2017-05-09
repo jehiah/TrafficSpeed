@@ -144,7 +144,6 @@ func (p *Project) Run() error {
 		p.Duration = pkt.Time
 		p.Frames = int64(frame)
 
-
 		interested := true
 		switch {
 		case frame == 0:
@@ -181,7 +180,7 @@ func (p *Project) Run() error {
 			// vf.Image.Cb = make([]uint8, len(vf.Image.Cb))
 			// vf.Image.Cr = make([]uint8, len(vf.Image.Cr))
 			// load image
-			
+
 			out := new(bytes.Buffer)
 			png.Encode(out, &vf.Image)
 			mw.ReadImageBlob(out.Bytes())
@@ -200,10 +199,15 @@ func (p *Project) Run() error {
 			if p.Step >= 4 {
 				// rotate & crop
 				log.Printf("crop %v", p.BBox)
-				err = mw.CropImage(uint(p.BBox.Width()), uint(p.BBox.Height()), int(p.BBox.A.X), int(p.BBox.A.Y))
-				if err != nil {
-					return err
-				}
+				// rotate leaves the page w/ an offset. We need to offset x/y now
+				// repage() or ResetImagePage might reset this
+				_, _, wx, wy, _ := mw.GetImagePage()
+				// TODO(jehiah) is GetImageRegion or CropImage faster
+				mw = mw.GetImageRegion(uint(p.BBox.Width()), uint(p.BBox.Height()), int(p.BBox.A.X)+wx, int(p.BBox.A.Y)+wy)
+				// err = mw.CropImage(uint(p.BBox.Width()), uint(p.BBox.Height()), int(p.BBox.A.X)+wx, int(p.BBox.A.Y)+wy)
+				// if err != nil {
+				// 	return err
+				// }
 				imgBytes := mw.GetImageBlob()
 				p.Response.Step4Img = dataImgFromBytes("image/png", imgBytes)
 			}
@@ -228,16 +232,16 @@ func (p *Project) Run() error {
 		}
 		// set every frame, so this ends w/ the last value
 	}
-	
+
 	var bgavg *image.RGBA
 	if p.Step == 5 && len(bg) > 0 {
 		log.Printf("calculate background from %d frames", len(bg))
 		bgavg = image.NewRGBA(bg.Bounds())
 		draw.Draw(bgavg, bgavg.Bounds(), bg, image.ZP, draw.Over)
 		p.Response.BackgroundImg = dataImg(bgavg, "")
-		
+
 	}
-	if p.Step == 5 && bgavg != nil{
+	if p.Step == 5 && bgavg != nil {
 		analysis.Calculate(bgavg)
 		p.Response.FrameAnalysis = append(p.Response.FrameAnalysis, *analysis)
 	}

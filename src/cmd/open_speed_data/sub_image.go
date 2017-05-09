@@ -35,4 +35,3 @@ func SubImage(a, b *image.RGBA) *image.Gray {
 	}
 	return t
 }
-

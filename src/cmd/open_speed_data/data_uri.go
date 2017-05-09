@@ -21,7 +21,7 @@ func dataImg(img image.Image, mime string) template.URL {
 	case "image/png":
 		err = png.Encode(out, img)
 	case "image/webp":
-		err = webp.Encode(out, img, &webp.Options{Quality: 75})
+		err = webp.Encode(out, img, &webp.Options{Quality: 90})
 	default:
 		panic("unknown type " + mime)
 	}
