@@ -37,7 +37,7 @@ type Project struct {
 	// User Inputs
 	Rotate       float64        `json:"rotate,omitempty"` // radians
 	BBox         *BBox          `json:"bbox,omitempty"`
-	Masks        []Mask         `json:"masks,omitempty"`
+	Masks        Masks          `json:"masks,omitempty"`
 	Tolerance    float64        `json:"tolerance"`
 	Blur         int64          `json:"blur"`
 	MinMass      int64          `json:"min_mass"`
@@ -183,6 +183,7 @@ func (p *Project) Run() error {
 
 			out := new(bytes.Buffer)
 			png.Encode(out, &vf.Image)
+			var imgBytes []byte
 			mw.ReadImageBlob(out.Bytes())
 
 			if p.Step >= 3 {
@@ -208,8 +209,17 @@ func (p *Project) Run() error {
 				// if err != nil {
 				// 	return err
 				// }
-				imgBytes := mw.GetImageBlob()
+				imgBytes = mw.GetImageBlob()
 				p.Response.Step4Img = dataImgFromBytes("image/png", imgBytes)
+			}
+			if p.Step >= 5 {
+				// mask
+				maskImg, err := png.Decode(bytes.NewBuffer(imgBytes))
+				if err != nil {
+					return err
+				}
+				p.Masks.Apply(maskImg)
+				p.Response.Step4MaskImg = dataImg(maskImg, "image/webp")
 			}
 		}
 

@@ -2,6 +2,10 @@ package main
 
 import (
 	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -42,4 +46,29 @@ func ParseMask(s string) (m Mask, ok bool) {
 		ok = !m.BBox.IsZero()
 	}
 	return
+}
+
+var black = image.NewUniform(color.Gray{})
+
+type Masks []Mask
+
+func (m Masks) Apply(i image.Image) {
+	var ii draw.Image
+	var ok bool
+	if ii, ok = i.(draw.Image); !ok {
+		log.Printf("%T does not implement draw.Image")
+		return
+	}
+	for _, mm := range m {
+		var r image.Rectangle
+		if mm.BBox != nil {
+			r = image.Rect(int(mm.BBox.A.X), int(mm.BBox.A.Y), int(mm.BBox.B.X), int(mm.BBox.B.Y))
+		} else {
+			r.Min.Y = int(mm.Start)
+			r.Max.Y = int(mm.End)
+			r.Max.X = i.Bounds().Max.X
+		}
+		log.Printf("drawing black in %v", r)
+		draw.Draw(ii, r, black, image.ZP, draw.Src)
+	}
 }
