@@ -17,7 +17,8 @@ import (
 	"github.com/nareix/joy4/format"
 	// "github.com/nareix/joy4/format/mp4"
 	"avgimg"
-	"gopkg.in/gographics/imagick.v3/imagick"
+	// "gopkg.in/gographics/imagick.v3/imagick"
+	"github.com/anthonynsimon/bild/transform"
 )
 
 func init() {
@@ -102,6 +103,10 @@ func (p *Project) Close() {
 }
 
 func (p *Project) Run() error {
+	start := time.Now()
+	defer func() {
+		log.Printf("Run took %s", time.Since(start))
+	}()
 	p.SetStep()
 
 	streams, _ := p.demuxer.Streams()
@@ -121,9 +126,6 @@ func (p *Project) Run() error {
 	frame := 0
 	var bg avgimg.AvgRGBA
 	var err error
-	mw := imagick.NewMagickWand()
-	background := imagick.NewPixelWand()
-	background.SetColor("#000000")
 
 	for ; ; frame++ {
 		var pkt av.Packet
@@ -171,36 +173,20 @@ func (p *Project) Run() error {
 				p.Response.Step2Img = dataImg(&vf.Image, "")
 			}
 
-			// load image
-
-			WandSetImage(mw, rgbImg)
-			// ExportImagePixels
-			// ImportImagePixels
-			// ConstituteImage
-			// https://godoc.org/gopkg.in/gographics/imagick.v3/imagick#MagickWand.ExportImagePixels
-
 			if p.Step >= 3 {
 				log.Printf("rotating %v", p.Rotate)
 				// apply rotation
-				err = mw.RotateImage(background, RadiansToDegrees(p.Rotate))
-				if err != nil {
-					return err
-				}
-				img, err = WandImage(mw)
-				if err != nil {
-					return err
-				}
+
+				img = transform.Rotate(rgbImg, RadiansToDegrees(p.Rotate), &transform.RotationOptions{ResizeBounds: true})
 				p.Response.Step3Img = dataImg(img, "image/webp")
 			}
 			if p.Step >= 4 {
 				// rotate & crop
 				log.Printf("crop %v", p.BBox)
-				mw = Crop(mw, p.BBox.Rect())
+
+				img = img.SubImage(p.BBox.Rect()).(*image.RGBA)
+				// img = transform.Crop(img, p.BBox.Rect())
 				p.Response.CroppedResolution = fmt.Sprintf("%dx%d", p.BBox.Dx(), p.BBox.Dy())
-				img, err = WandImage(mw)
-				if err != nil {
-					return err
-				}
 				p.Response.Step4Img = dataImg(img, "image/webp")
 			}
 			if p.Step >= 5 {
@@ -214,22 +200,28 @@ func (p *Project) Run() error {
 		case p.Step == 5 && len(bg) < bgFrameCount && frame%bgFrameSkip == 0:
 			fallthrough
 		case p.Step == 5 && analysis.NeedsMore():
-			WandSetImage(mw, rgbImg)
+			// WandSetImage(mw, rgbImg)
+			// if p.Rotate != 0 {
+			// 	err = mw.RotateImage(background, RadiansToDegrees(p.Rotate))
+			// }
+			// mw = Crop(mw, p.BBox.Rect())
+			// rgbImg, err = WandImage(mw)
+			// if err != nil {
+			// 	return err
+			// }
+
 			if p.Rotate != 0 {
-				err = mw.RotateImage(background, RadiansToDegrees(p.Rotate))
+				rgbImg = transform.Rotate(rgbImg, RadiansToDegrees(p.Rotate), &transform.RotationOptions{ResizeBounds: true})
 			}
-			mw = Crop(mw, p.BBox.Rect())
-			rgbImg, err = WandImage(mw)
-			if err != nil {
-				return err
-			}
+			rgbImg = rgbImg.SubImage(p.BBox.Rect()).(*image.RGBA)
+			// rgbImg = transform.Crop(rgbImg, p.BBox.Rect())
 			p.Masks.Apply(rgbImg)
 		}
 
 		if p.Step == 5 && len(bg) < bgFrameCount && frame%bgFrameSkip == 0 {
 			bg = append(bg, rgbImg)
-			// debugImg := dataImgWithSize(bgframe, 400, 300, "")
-			// p.Response.DebugImages = append(p.Response.DebugImages, frameImg)
+			// debugImg := dataImgWithSize(rgbImg, 400, 200, "image/png")
+			//  			p.Response.DebugImages = append(p.Response.DebugImages, debugImg)
 		}
 		if p.Step == 5 && analysis.NeedsMore() {
 			log.Printf("saving frame %d for analysis later", frame)

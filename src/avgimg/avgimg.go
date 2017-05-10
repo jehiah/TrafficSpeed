@@ -8,6 +8,7 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	"log"
 )
 
 type AvgYCbCr []*image.YCbCr
@@ -60,20 +61,25 @@ func (a AvgRGBA) Bounds() image.Rectangle {
 	return a[0].Bounds()
 }
 func (a AvgRGBA) At(x, y int) color.Color {
-	var ar, ag, ab, aa uint64
+	var ar, ag, ab uint64
 	for _, p := range a {
-		offset := (y * p.Stride) + (x * 4)
+		offset := p.PixOffset(x, y)
 		ar += uint64(p.Pix[offset])
 		ag += uint64(p.Pix[offset+1])
 		ab += uint64(p.Pix[offset+2])
-		aa += uint64(p.Pix[offset+3])
+		// aa += uint64(p.Pix[offset+3])
 	}
-	return color.RGBA{
+	c := color.RGBA{
 		uint8(ar / uint64(len(a))),
 		uint8(ag / uint64(len(a))),
 		uint8(ab / uint64(len(a))),
-		uint8(aa / uint64(len(a))),
+		255,
 	}
+
+	if x <= 1 && y <= 1 {
+		log.Printf("x:%d y:%d color:%v", x, y, c)
+	}
+	return c
 }
 
 func (a AvgRGBA) Add(i *image.RGBA) {
@@ -88,7 +94,9 @@ func (a AvgRGBA) Add(i *image.RGBA) {
 }
 
 func (a AvgRGBA) Image() *image.RGBA {
-	i := image.NewRGBA(a.Bounds())
-	draw.Draw(i, a.Bounds(), a, image.ZP, draw.Over)
+	ab := a.Bounds()
+	log.Printf("Image() %#v", ab)
+	i := image.NewRGBA(image.Rect(0, 0, ab.Dx(), ab.Dy()))
+	draw.Draw(i, i.Bounds(), a, ab.Min, draw.Over)
 	return i
 }

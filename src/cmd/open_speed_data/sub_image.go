@@ -16,29 +16,38 @@ func abs16(a, b uint8) uint16 {
 
 // a delta image is a - b on a greyscale value of the total absolute combined r+g+b difference
 func SubImage(a, b *image.RGBA, tolerance uint8) *image.Gray {
-	if a.Bounds() != b.Bounds() {
+	aMin := a.Bounds().Min
+	bMin := b.Bounds().Min
+	dx, dy := a.Bounds().Dx(), a.Bounds().Dy()
+
+	if dx != b.Bounds().Dx() || dy != b.Bounds().Dy() {
 		panic("not same size")
 	}
 	c := uint16(tolerance)
-	t := image.NewGray(a.Bounds())
-	for i := 0; i*4 < len(a.Pix); i++ {
-		r := abs16(a.Pix[(i*4)], b.Pix[(i*4)])
-		g := abs16(a.Pix[(i*4)+1], b.Pix[(i*4)+1])
-		b := abs16(a.Pix[(i*4)+2], b.Pix[(i*4)+2])
-		// max delta = 0-255 * 3
-		sum := (r + g + b) / 3
-		if sum < c {
-			sum = 0
-		} else {
-			sum = sum * sum // square it
-		}
-		// clamp [0, 255]
-		switch {
-		case sum > 255:
-			t.Pix[i] = 255
-		default:
-			t.Pix[i] = uint8(sum)
+	gg := image.NewGray(image.Rect(0, 0, dx, dy))
+
+	for x := 0; x < dx; x++ {
+		for y := 0; y < dy; y++ {
+			aOffset := a.PixOffset(aMin.X+x, aMin.Y+y)
+			bOffset := b.PixOffset(bMin.X+x, bMin.Y+y)
+			r := abs16(a.Pix[aOffset], b.Pix[bOffset])
+			g := abs16(a.Pix[aOffset+1], b.Pix[bOffset+1])
+			b := abs16(a.Pix[aOffset+2], b.Pix[bOffset+2])
+			// max delta = 0-255 * 3
+			sum := (r + g + b) / 3
+			if sum < c {
+				sum = 0
+			} else {
+				sum = sum * sum // square it
+			}
+			// clamp [0, 255]
+			switch {
+			case sum > 255:
+				gg.Pix[gg.PixOffset(x, y)] = 255
+			default:
+				gg.Pix[gg.PixOffset(x, y)] = uint8(sum)
+			}
 		}
 	}
-	return t
+	return gg
 }

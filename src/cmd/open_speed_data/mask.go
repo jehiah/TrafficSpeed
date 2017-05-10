@@ -62,13 +62,16 @@ func (m Masks) Apply(i image.Image) {
 	for _, mm := range m {
 		var r image.Rectangle
 		if mm.BBox != nil {
-			r = image.Rect(int(mm.BBox.A.X), int(mm.BBox.A.Y), int(mm.BBox.B.X), int(mm.BBox.B.Y))
+			r = mm.BBox.Rect()
 		} else {
 			r.Min.Y = int(mm.Start)
 			r.Max.Y = int(mm.End)
-			r.Max.X = i.Bounds().Max.X
+			r.Max.X = i.Bounds().Dx()
 		}
 		log.Printf("masking %v", r)
+
+		// adjust by .Min{X,Y} which might not be zero
+		r = r.Add(ii.Bounds().Min)
 		draw.Draw(ii, r, black, image.ZP, draw.Src)
 	}
 }
