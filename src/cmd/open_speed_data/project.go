@@ -119,7 +119,7 @@ func (p *Project) Run() error {
 
 	// set overview img
 	frame := 0
-	var bg avgimg.AvgImage
+	var bg avgimg.AvgRGBA
 	var err error
 	mw := imagick.NewMagickWand()
 	background := imagick.NewPixelWand()
@@ -152,12 +152,16 @@ func (p *Project) Run() error {
 		}
 
 		var vf *ffmpeg.VideoFrame
+		var rgbImg *image.RGBA
+		var img *image.RGBA
 		if interested {
 			log.Printf("interested in frame %d %s", frame, pkt.Time)
 			vf, err = decoders[pkt.Idx].Decode(pkt.Data)
 			if err != nil {
 				return err
 			}
+			rgbImg = RGBA(&vf.Image)
+
 		}
 
 		if frame == 0 {
@@ -167,19 +171,9 @@ func (p *Project) Run() error {
 				p.Response.Step2Img = dataImg(&vf.Image, "")
 			}
 
-			// grey scale
-			// for i := 0; i < len(vf.Image.Cb); i++ {
-			// 	vf.Image.Cb[i] = 128 // aka .5 the zero point
-			// }
-			// for i := 0; i < len(vf.Image.Cr); i++ {
-			// 	vf.Image.Cr[i] = 128
-			// }
-			// vf.Image.Cb = make([]uint8, len(vf.Image.Cb))
-			// vf.Image.Cr = make([]uint8, len(vf.Image.Cr))
 			// load image
 
-			img := RGBA(&vf.Image)
-			WandSetImage(mw, img)
+			WandSetImage(mw, rgbImg)
 			// ExportImagePixels
 			// ImportImagePixels
 			// ConstituteImage
@@ -189,7 +183,6 @@ func (p *Project) Run() error {
 				log.Printf("rotating %v", p.Rotate)
 				// apply rotation
 				err = mw.RotateImage(background, RadiansToDegrees(p.Rotate))
-				// ResetImagePage ?
 				if err != nil {
 					return err
 				}
@@ -202,19 +195,8 @@ func (p *Project) Run() error {
 			if p.Step >= 4 {
 				// rotate & crop
 				log.Printf("crop %v", p.BBox)
-				// rotate leaves the page w/ an offset. We need to offset x/y now
-				// repage() or ResetImagePage might reset this
-				_, _, wx, wy, _ := mw.GetImagePage()
-				// TODO(jehiah) is GetImageRegion or CropImage faster
-				mw = mw.GetImageRegion(uint(p.BBox.Width()), uint(p.BBox.Height()), int(p.BBox.A.X)+wx, int(p.BBox.A.Y)+wy)
-
-				p.Response.CroppedResolution = fmt.Sprintf("%dx%d", int(p.BBox.Width()), int(p.BBox.Height()))
-				mw.ResetImagePage(p.Response.CroppedResolution + "+0+0")
-
-				// err = mw.CropImage(uint(p.BBox.Width()), uint(p.BBox.Height()), int(p.BBox.A.X)+wx, int(p.BBox.A.Y)+wy)
-				// if err != nil {
-				// 	return err
-				// }
+				mw = Crop(mw, p.BBox.Rect())
+				p.Response.CroppedResolution = fmt.Sprintf("%dx%d", p.BBox.Dx(), p.BBox.Dy())
 				img, err = WandImage(mw)
 				if err != nil {
 					return err
@@ -228,22 +210,30 @@ func (p *Project) Run() error {
 			}
 		}
 
-		var frameImg *image.YCbCr
-		if p.Step == 5 && len(bg) < bgFrameCount && frame%bgFrameSkip == 0 {
-			// queue frames to be used in background calculation
-			if frameImg == nil {
-				frameImg = CopyYCbCr(vf.Image)
+		switch {
+		case p.Step == 5 && len(bg) < bgFrameCount && frame%bgFrameSkip == 0:
+			fallthrough
+		case p.Step == 5 && analysis.NeedsMore():
+			WandSetImage(mw, rgbImg)
+			if p.Rotate != 0 {
+				err = mw.RotateImage(background, RadiansToDegrees(p.Rotate))
 			}
-			bg = append(bg, frameImg)
+			mw = Crop(mw, p.BBox.Rect())
+			rgbImg, err = WandImage(mw)
+			if err != nil {
+				return err
+			}
+			p.Masks.Apply(rgbImg)
+		}
+
+		if p.Step == 5 && len(bg) < bgFrameCount && frame%bgFrameSkip == 0 {
+			bg = append(bg, rgbImg)
 			// debugImg := dataImgWithSize(bgframe, 400, 300, "")
 			// p.Response.DebugImages = append(p.Response.DebugImages, frameImg)
 		}
 		if p.Step == 5 && analysis.NeedsMore() {
-			if frameImg == nil {
-				frameImg = CopyYCbCr(vf.Image)
-			}
 			log.Printf("saving frame %d for analysis later", frame)
-			analysis.images = append(analysis.images, frameImg)
+			analysis.images = append(analysis.images, rgbImg)
 		}
 		// set every frame, so this ends w/ the last value
 	}

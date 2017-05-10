@@ -10,15 +10,15 @@ import (
 	"image/draw"
 )
 
-type AvgImage []*image.YCbCr
+type AvgYCbCr []*image.YCbCr
 
-func (a AvgImage) ColorModel() color.Model {
+func (a AvgYCbCr) ColorModel() color.Model {
 	return color.YCbCrModel
 }
-func (a AvgImage) Bounds() image.Rectangle {
+func (a AvgYCbCr) Bounds() image.Rectangle {
 	return a[0].Bounds()
 }
-func (a AvgImage) At(x, y int) color.Color {
+func (a AvgYCbCr) At(x, y int) color.Color {
 	var ay, ab, ar uint64
 	for _, p := range a {
 		yi := p.YOffset(x, y)
@@ -34,7 +34,7 @@ func (a AvgImage) At(x, y int) color.Color {
 	}
 }
 
-func (a AvgImage) Add(i *image.YCbCr) {
+func (a AvgYCbCr) Add(i *image.YCbCr) {
 	if len(a) == 0 {
 		a = append(a, i)
 		return
@@ -45,7 +45,49 @@ func (a AvgImage) Add(i *image.YCbCr) {
 	a = append(a, i)
 }
 
-func (a AvgImage) Image() *image.RGBA {
+func (a AvgYCbCr) Image() *image.RGBA {
+	i := image.NewRGBA(a.Bounds())
+	draw.Draw(i, a.Bounds(), a, image.ZP, draw.Over)
+	return i
+}
+
+type AvgRGBA []*image.RGBA
+
+func (a AvgRGBA) ColorModel() color.Model {
+	return color.RGBAModel
+}
+func (a AvgRGBA) Bounds() image.Rectangle {
+	return a[0].Bounds()
+}
+func (a AvgRGBA) At(x, y int) color.Color {
+	var ar, ag, ab, aa uint64
+	for _, p := range a {
+		offset := (y * p.Stride) + (x * 4)
+		ar += uint64(p.Pix[offset])
+		ag += uint64(p.Pix[offset+1])
+		ab += uint64(p.Pix[offset+2])
+		aa += uint64(p.Pix[offset+3])
+	}
+	return color.RGBA{
+		uint8(ar / uint64(len(a))),
+		uint8(ag / uint64(len(a))),
+		uint8(ab / uint64(len(a))),
+		uint8(aa / uint64(len(a))),
+	}
+}
+
+func (a AvgRGBA) Add(i *image.RGBA) {
+	if len(a) == 0 {
+		a = append(a, i)
+		return
+	}
+	if a[0].Bounds() != i.Bounds() {
+		panic("image bounds don't match")
+	}
+	a = append(a, i)
+}
+
+func (a AvgRGBA) Image() *image.RGBA {
 	i := image.NewRGBA(a.Bounds())
 	draw.Draw(i, a.Bounds(), a, image.ZP, draw.Over)
 	return i

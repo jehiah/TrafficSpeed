@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"image"
 	"log"
 	"math"
 	"strconv"
@@ -45,6 +46,20 @@ func (b BBox) Height() float64 {
 }
 func (b BBox) Width() float64 {
 	return b.B.X - b.A.X
+}
+func (b BBox) Dy() int {
+	return int(b.Height())
+}
+func (b BBox) Dx() int {
+	return int(b.Width())
+}
+func (b BBox) Rect() image.Rectangle {
+	return image.Rect(
+		int(b.A.X),
+		int(b.A.Y),
+		int(b.B.X),
+		int(b.B.Y),
+	)
 }
 
 type Point struct {

@@ -80,3 +80,17 @@ func WandImageSize(mw *imagick.MagickWand, r image.Rectangle) (*image.RGBA, erro
 		r,
 	}, nil
 }
+
+func Crop(mw *imagick.MagickWand, r image.Rectangle) *imagick.MagickWand {
+	_, _, wx, wy, _ := mw.GetImagePage()
+	newSize := fmt.Sprintf("%dx%d", r.Dx(), r.Dy())
+	log.Printf("crop to %d,%d %s", r.Min.X+wx, r.Min.Y+wy, newSize)
+	mw = mw.GetImageRegion(uint(r.Dx()), uint(r.Dy()), r.Min.X+wx, r.Min.Y+wy)
+	mw.ResetImagePage(newSize + "+0+0")
+	return mw
+
+	// err = mw.CropImage(uint(p.BBox.Width()), uint(p.BBox.Height()), int(p.BBox.A.X)+wx, int(p.BBox.A.Y)+wy)
+	// if err != nil {
+	// 	return err
+	// }
+}

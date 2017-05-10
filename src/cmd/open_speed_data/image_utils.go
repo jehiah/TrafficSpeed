@@ -21,3 +21,13 @@ func RGBA(src *image.YCbCr) *image.RGBA {
 	draw.Draw(m, m.Bounds(), src, image.ZP, draw.Src)
 	return m
 }
+
+// grey scale
+// for i := 0; i < len(vf.Image.Cb); i++ {
+// 	vf.Image.Cb[i] = 128 // aka .5 the zero point
+// }
+// for i := 0; i < len(vf.Image.Cr); i++ {
+// 	vf.Image.Cr[i] = 128
+// }
+// vf.Image.Cb = make([]uint8, len(vf.Image.Cb))
+// vf.Image.Cr = make([]uint8, len(vf.Image.Cr))

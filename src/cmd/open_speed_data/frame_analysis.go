@@ -21,7 +21,7 @@ type FrameAnalysis struct {
 	ColoredGif   template.URL  `json:"colored_gif,omitempty"`
 	Positions    []Position    `json:"positions,omitempty"`
 
-	images []*image.YCbCr
+	images []*image.RGBA
 }
 
 func (f FrameAnalysis) NeedsMore() bool {
@@ -33,7 +33,7 @@ func (f *FrameAnalysis) Calculate(bg *image.RGBA) {
 	if len(f.images) == 0 {
 		return
 	}
-	src := RGBA(f.images[0])
+	src := f.images[0]
 	highlight := SubImage(src, bg)
 	// base = first frame
 	// highlight = base - background
