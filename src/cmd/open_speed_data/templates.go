@@ -152,7 +152,7 @@ const tpl = `
 		
 		<div class="form-group">
 			<label>Tolerance: <input name="tolerance" id="tolerance" type="text" value="{{.Tolerance}}" /></label>
-			<span class="help-block">The required difference from the background.</span>
+			<span class="help-block">The required difference from the background. Valid range: <kbd>0</kbd> to <kbd>255</kbd>. </span>
 		</div>
 		
 		<div class="form-group">

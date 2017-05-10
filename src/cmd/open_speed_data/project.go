@@ -35,7 +35,7 @@ type Project struct {
 	Rotate       float64        `json:"rotate,omitempty"` // radians
 	BBox         *BBox          `json:"bbox,omitempty"`
 	Masks        Masks          `json:"masks,omitempty"`
-	Tolerance    float64        `json:"tolerance"`
+	Tolerance    uint8          `json:"tolerance"`
 	Blur         int64          `json:"blur"`
 	MinMass      int64          `json:"min_mass"`
 	Seek         float64        `json:"seek"`
@@ -246,7 +246,7 @@ func (p *Project) Run() error {
 
 	}
 	if p.Step == 5 && bgavg != nil {
-		analysis.Calculate(bgavg)
+		analysis.Calculate(bgavg, p.Tolerance)
 		p.Response.FrameAnalysis = append(p.Response.FrameAnalysis, *analysis)
 	}
 

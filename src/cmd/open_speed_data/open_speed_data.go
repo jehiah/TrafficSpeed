@@ -78,9 +78,17 @@ func main() {
 			}
 			return d
 		}
+		getuint8 := func(key string, d uint8) uint8 {
+			if v := req.Form.Get(key); v != "" {
+				if i, err := strconv.ParseUint(v, 10, 8); err == nil {
+					return uint8(i)
+				}
+			}
+			return d
+		}
 
 		p.Rotate = getf64("rotate", 0)
-		p.Tolerance = getf64("tolerance", 0.06)
+		p.Tolerance = getuint8("tolerance", 40)
 		p.Blur = geti64("blur", 3)
 		p.MinMass = geti64("min_mass", 100)
 		p.Seek = getf64("seek", 0)

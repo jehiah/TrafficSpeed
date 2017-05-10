@@ -69,7 +69,7 @@ func WandImage(mw *imagick.MagickWand) (*image.RGBA, error) {
 }
 
 func WandImageSize(mw *imagick.MagickWand, r image.Rectangle) (*image.RGBA, error) {
-	LogWandInfo(mw, fmt.Sprintf("[WandImageSize %#v]", r))
+	// LogWandInfo(mw, fmt.Sprintf("[WandImageSize %#v]", r))
 	data, err := mw.ExportImagePixels(r.Min.X, r.Min.Y, uint(r.Dx()), uint(r.Dy()), "RGBA", imagick.PIXEL_CHAR)
 	if err != nil {
 		return nil, err

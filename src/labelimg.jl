@@ -21,7 +21,13 @@ function labelimg_base(img::Image, background::Image)
 end
 
 function label(img::Image, background::Image, masks::Array, blur=[3,3], tolerance=0.06)
-    i = imfilter_gaussian(grayim(abs((convert(Image{RGB{Float32}}, img) - convert(Image{RGB{Float32}}, background)).^2)),blur) .> tolerance
+    i = imfilter_gaussian(
+        grayim(
+            abs((
+                convert(Image{RGB{Float32}}, img) - convert(Image{RGB{Float32}}, background)
+            ).^2)
+        )
+    ,blur) .> tolerance
     i::BitMatrix
     label_components(mask(i, masks)) # This is like MATLAB's bwlabel
 end
