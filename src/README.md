@@ -36,3 +36,4 @@ CGO_LDFLAGS="-L/usr/local/Cellar/ffmpeg/3.3/lib" CGO_CFLAGS="-I/usr/local/Cellar
 http://www.imagemagick.org/Usage/distorts/
 https://godoc.org/github.com/rainycape/magick
 https://godoc.org/gopkg.in/gographics/imagick.v3/imagick#DistortImageMethod
+http://www.imagemagick.org/script/magick-wand.php

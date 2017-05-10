@@ -68,7 +68,7 @@ func (m Masks) Apply(i image.Image) {
 			r.Max.Y = int(mm.End)
 			r.Max.X = i.Bounds().Max.X
 		}
-		log.Printf("drawing black in %v", r)
+		log.Printf("masking %v", r)
 		draw.Draw(ii, r, black, image.ZP, draw.Src)
 	}
 }

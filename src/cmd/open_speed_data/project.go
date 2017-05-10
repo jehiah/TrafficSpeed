@@ -189,6 +189,7 @@ func (p *Project) Run() error {
 				log.Printf("rotating %v", p.Rotate)
 				// apply rotation
 				err = mw.RotateImage(background, RadiansToDegrees(p.Rotate))
+				// ResetImagePage ?
 				if err != nil {
 					return err
 				}
@@ -206,16 +207,19 @@ func (p *Project) Run() error {
 				_, _, wx, wy, _ := mw.GetImagePage()
 				// TODO(jehiah) is GetImageRegion or CropImage faster
 				mw = mw.GetImageRegion(uint(p.BBox.Width()), uint(p.BBox.Height()), int(p.BBox.A.X)+wx, int(p.BBox.A.Y)+wy)
+
+				p.Response.CroppedResolution = fmt.Sprintf("%dx%d", int(p.BBox.Width()), int(p.BBox.Height()))
+				mw.ResetImagePage(p.Response.CroppedResolution + "+0+0")
+
 				// err = mw.CropImage(uint(p.BBox.Width()), uint(p.BBox.Height()), int(p.BBox.A.X)+wx, int(p.BBox.A.Y)+wy)
 				// if err != nil {
 				// 	return err
 				// }
-				img, err = WandImageSize(mw, image.Rect(0, 0, int(p.BBox.Width()), int(p.BBox.Height())))
+				img, err = WandImage(mw)
 				if err != nil {
 					return err
 				}
 				p.Response.Step4Img = dataImg(img, "image/webp")
-				p.Response.CroppedResolution = fmt.Sprintf("%dx%d", int(p.BBox.Width()), int(p.BBox.Height()))
 			}
 			if p.Step >= 5 {
 				// mask
