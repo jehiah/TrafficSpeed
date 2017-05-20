@@ -68,7 +68,7 @@ func (m Masks) Apply(i image.Image) {
 			r.Max.Y = int(mm.End)
 			r.Max.X = i.Bounds().Dx()
 		}
-		log.Printf("masking %v", r)
+		// log.Printf("masking %v", r)
 
 		// adjust by .Min{X,Y} which might not be zero
 		r = r.Add(ii.Bounds().Min)

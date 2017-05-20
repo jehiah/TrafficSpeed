@@ -173,11 +173,14 @@ const tpl = `
 		{{ range .Response.FrameAnalysis }}
 		<div class="col-xs-12 col-md-8 col-lg-6">
 			<h4>Time index <code>{{.Timestamp}} seconds</code></h4>
+
 			<p>Frame: (before masking)</p>
 			<img src="{{.Base}}" class="img-responsive" alt="base">
+
 			<p>Active Image: (before masking)</p>
 			<img src="{{.Highlight}}" class="img-responsive" alt="highlight">
 			<img src="{{.HighlightGif}}" class="img-responsive" alt="highlight-gif">
+
 			<p>Detected Areas: (after masking)</p>
 			<img src="{{.ColoredGif}}" class="img-responsive">
 			{{ if .Positions }}
@@ -261,7 +264,9 @@ const tpl = `
 	{{ end }}
 	
 	</form>
-</div></div></div>
+</div></div>
+<div class="row">&nbsp;</div>
+</div>
 <script type="text/javascript">
 function pos(el, event) {
 	var pos_x = event.offsetX ? event.offsetX : event.pageX - el.offsetLeft;

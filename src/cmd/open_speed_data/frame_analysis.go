@@ -1,13 +1,14 @@
 package main
 
 import (
+	"github.com/nfnt/resize"
 	"html/template"
 	"image"
 	"log"
 	"time"
 )
 
-const analysFrameCount = 5
+const analysFrameCount = 90
 
 var analyizeInterval time.Duration = time.Duration(30) * time.Second
 
@@ -42,4 +43,20 @@ func (f *FrameAnalysis) Calculate(bg *image.RGBA, tolerance uint8) {
 
 	// animate 2s of video in 1s (drop 50% of frames)
 	// ^^ == highlight_gif
+	log.Printf("animating highlight gif")
+	var highlightImages []image.Image
+	var colored []image.Image
+	bgresize := resize.Thumbnail(550, 200, bg, resize.NearestNeighbor).(*image.RGBA)
+	for i := 0; i < 60 && i < len(f.images); i += 3 {
+		im := resize.Thumbnail(550, 200, f.images[i], resize.NearestNeighbor)
+		highlightImages = append(highlightImages, im)
+
+		colored = append(colored, SubImage(im.(*image.RGBA), bgresize, tolerance))
+	}
+	g := NewGIF(highlightImages)
+	f.HighlightGif = dataGif(g)
+
+	g = NewGIF(colored)
+	f.ColoredGif = dataGif(g)
+
 }

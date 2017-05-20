@@ -5,11 +5,21 @@ import (
 	"encoding/base64"
 	"html/template"
 	"image"
+	"image/gif"
 	"image/png"
 
 	"github.com/chai2010/webp"
 	"github.com/nfnt/resize"
 )
+
+func dataGif(g *gif.GIF) template.URL {
+	out := new(bytes.Buffer)
+	err := gif.EncodeAll(out, g)
+	if err != nil {
+		panic(err.Error())
+	}
+	return dataImgFromBytes("image/gif", out.Bytes())
+}
 
 func dataImg(img image.Image, mime string) template.URL {
 	if mime == "" {
