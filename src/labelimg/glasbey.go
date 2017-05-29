@@ -4,7 +4,7 @@ package labelimg
 
 import "image/color"
 
-var Glasbey = []color.RGBA{
+var Glasbey = []color.Color{
 	color.RGBA{255, 255, 255, 0},
 	color.RGBA{0, 0, 255, 0},
 	color.RGBA{255, 0, 0, 0},

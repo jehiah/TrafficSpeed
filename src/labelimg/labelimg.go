@@ -10,7 +10,6 @@ import (
 
 type LabelImage image.Paletted
 
-
 func New(g *image.Gray) *image.Paletted {
 	p := image.NewPaletted(g.Bounds(), nil)
 	for x := g.Rect.Min.X; x < g.Rect.Max.X; x++ {
@@ -21,10 +20,10 @@ func New(g *image.Gray) *image.Paletted {
 			}
 			var i uint8
 			// do overlap checks to see if this is a new point or if it overlaps
-			for _, offset := range [][2]int{{0,1},{0,-1}, {1, 0}, {-1, 0}} {
+			for _, offset := range [][2]int{{0, 1}, {0, -1}, {1, 0}, {-1, 0}} {
 				xo, yo := offset[0], offset[1]
-				xx, yy := x + xo, y + yo
-				if !(image.Point{xx, yy}.In(p.Rect)) { 
+				xx, yy := x+xo, y+yo
+				if !(image.Point{xx, yy}.In(p.Rect)) {
 					continue
 				}
 				if g.Pix[g.PixOffset(xx, yy)] != 0 {
@@ -40,6 +39,12 @@ func New(g *image.Gray) *image.Paletted {
 						log.Printf("overlapping colors at (%d, %d) color index i:%v oi:%v", xx, yy, i, oi)
 						// we need to treat these indexes as the same
 						// use the smaller of the two
+						if oi > i {
+							replaceColor(p, oi, i)
+						} else {
+							replaceColor(p, i, oi)
+							i = oi
+						}
 					}
 				}
 			}
@@ -51,5 +56,21 @@ func New(g *image.Gray) *image.Paletted {
 			p.SetColorIndex(x-g.Rect.Min.X, y-g.Rect.Min.Y, i)
 		}
 	}
+	p.Palette = Glasbey[:len(p.Palette)]
 	return p
+}
+
+// replace pallete index a with b in p. Everything >=a is shifted down one index
+func replaceColor(p *image.Paletted, a, b uint8) {
+	if a <= b {
+		panic("a pallete index > b")
+	}
+	for i, c := range p.Pix {
+		if c == a {
+			p.Pix[i] = b
+		} else if c > b {
+			p.Pix[i] = c - 1
+		}
+	}
+	p.Palette = p.Palette[:len(p.Palette)-1]
 }
