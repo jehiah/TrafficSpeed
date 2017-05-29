@@ -1,20 +1,26 @@
-// labelimg creates a image.Pallete that detects up to 255 non-overlapping objects
+// labelimg creates a image.Palette that detects up to 255 non-overlapping areas
 // in an image and assigns each one a unique color
 package labelimg
 
 import (
 	"image"
 	"image/color"
-	"log"
 )
 
-type LabelImage image.Paletted
+// type LabelImage image.Paletted
 
+
+// New creates a new paletted image by detecting contiguous blobs of non-zero color in `g`. 
+// overlap is defined as +/- 1 on x and y axis. Diagonal overlap is not detected
 func New(g *image.Gray) *image.Paletted {
-	p := image.NewPaletted(g.Bounds(), nil)
+	pb := image.Rect(0, 0, g.Bounds().Dx(), g.Bounds().Dy())
+	// log.Printf("new image %v", pb)
+	p := image.NewPaletted(pb, nil)
+	
 	for x := g.Rect.Min.X; x < g.Rect.Max.X; x++ {
 		for y := g.Rect.Min.Y; y < g.Rect.Max.Y; y++ {
 			o := g.PixOffset(x, y)
+			// log.Printf("(%d,%d)[%d] = %d", x, y, o, g.Pix[0])
 			if g.Pix[o] == 0 {
 				continue
 			}
@@ -23,20 +29,27 @@ func New(g *image.Gray) *image.Paletted {
 			for _, offset := range [][2]int{{0, 1}, {0, -1}, {1, 0}, {-1, 0}} {
 				xo, yo := offset[0], offset[1]
 				xx, yy := x+xo, y+yo
-				if !(image.Point{xx, yy}.In(p.Rect)) {
+				// log.Printf("checking offset %d,%d +/- %d/%d -> %d,%d", x, y, xo, yo, xx, yy)
+				if !(image.Point{xx, yy}.In(g.Rect)) {
+					// log.Printf("point (%d,%d) doesn't exist in %v", xx, yy, g.Rect)
 					continue
 				}
 				if g.Pix[g.PixOffset(xx, yy)] != 0 {
-					// lower index
+					// contiguous area; check for existing detection
 					oi := p.ColorIndexAt(xx-g.Rect.Min.X, yy-g.Rect.Min.Y)
+					// log.Printf("contiguous area %d,%d = %d", xx, yy, oi)
 					if oi == 0 {
 						// that point will be detected later
+						// log.Printf("%d,%d will be detected later. skipping", xx, yy)
 						continue
 					}
 					if i == 0 {
+						// log.Printf("%d,%d (i:0) matches existing detection at %d,%d of %d", x, y, xx, yy, oi)
 						i = oi
+					} else if i ==  oi {
+						// log.Printf("%d,%d (i:%d) matches existing detection at %d,%d of %d", x, y, i, xx, yy, oi)
 					} else if i != oi {
-						log.Printf("overlapping colors at (%d, %d) color index i:%v oi:%v", xx, yy, i, oi)
+						// log.Printf("overlapping colors at (%d, %d) color index i:%v oi:%v", xx, yy, i, oi)
 						// we need to treat these indexes as the same
 						// use the smaller of the two
 						if oi > i {
@@ -50,7 +63,8 @@ func New(g *image.Gray) *image.Paletted {
 			}
 			if i == 0 {
 				// add new color
-				i = uint8(len(p.Palette))
+				i = uint8(len(p.Palette)) + 1
+				// log.Printf("%d,%d **** NEW COLOR %d", x, y, i)
 				p.Palette = append(p.Palette, color.Gray{i})
 			}
 			p.SetColorIndex(x-g.Rect.Min.X, y-g.Rect.Min.Y, i)
@@ -62,6 +76,7 @@ func New(g *image.Gray) *image.Paletted {
 
 // replace pallete index a with b in p. Everything >=a is shifted down one index
 func replaceColor(p *image.Paletted, a, b uint8) {
+	// log.Printf("replacing color %d with %d", a, b)
 	if a <= b {
 		panic("a pallete index > b")
 	}
