@@ -213,6 +213,7 @@ func (p *Project) Run() error {
 			if p.Rotate != 0 {
 				rgbImg = transform.Rotate(rgbImg, RadiansToDegrees(p.Rotate), &transform.RotationOptions{ResizeBounds: true})
 			}
+			// Crop
 			rgbImg = rgbImg.SubImage(p.BBox.Rect()).(*image.RGBA)
 			// rgbImg = transform.Crop(rgbImg, p.BBox.Rect())
 			p.Masks.Apply(rgbImg)
@@ -238,7 +239,7 @@ func (p *Project) Run() error {
 
 	}
 	if p.Step == 5 && bgavg != nil {
-		analysis.Calculate(bgavg, p.Tolerance)
+		analysis.Calculate(bgavg, p.Blur, p.Tolerance)
 		p.Response.FrameAnalysis = append(p.Response.FrameAnalysis, *analysis)
 	}
 

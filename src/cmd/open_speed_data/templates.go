@@ -176,13 +176,16 @@ const tpl = `
 
 			<p>Frame: (before masking)</p>
 			<img src="{{.Base}}" class="img-responsive" alt="base">
+			<img src="{{.BaseGif}}" class="img-responsive" alt="base-gif">
 
-			<p>Active Image: (before masking)</p>
+			<p>Active Image:</p>
 			<img src="{{.Highlight}}" class="img-responsive" alt="highlight">
 			<img src="{{.HighlightGif}}" class="img-responsive" alt="highlight-gif">
 
 			<p>Detected Areas: (after masking)</p>
-			<img src="{{.ColoredGif}}" class="img-responsive">
+			<img src="{{.Colored}}" class="img-responsive" alt="colored">
+			<img src="{{.ColoredGif}}" class="img-responsive" alt="colored-gif">
+
 			{{ if .Positions }}
 				<table class="table table-striped">
 				<thead>

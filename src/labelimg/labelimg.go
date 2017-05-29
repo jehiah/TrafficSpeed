@@ -9,14 +9,13 @@ import (
 
 // type LabelImage image.Paletted
 
-
-// New creates a new paletted image by detecting contiguous blobs of non-zero color in `g`. 
+// New creates a new paletted image by detecting contiguous blobs of non-zero color in `g`.
 // overlap is defined as +/- 1 on x and y axis. Diagonal overlap is not detected
 func New(g *image.Gray) *image.Paletted {
 	pb := image.Rect(0, 0, g.Bounds().Dx(), g.Bounds().Dy())
 	// log.Printf("new image %v", pb)
 	p := image.NewPaletted(pb, nil)
-	
+
 	for x := g.Rect.Min.X; x < g.Rect.Max.X; x++ {
 		for y := g.Rect.Min.Y; y < g.Rect.Max.Y; y++ {
 			o := g.PixOffset(x, y)
@@ -46,7 +45,7 @@ func New(g *image.Gray) *image.Paletted {
 					if i == 0 {
 						// log.Printf("%d,%d (i:0) matches existing detection at %d,%d of %d", x, y, xx, yy, oi)
 						i = oi
-					} else if i ==  oi {
+					} else if i == oi {
 						// log.Printf("%d,%d (i:%d) matches existing detection at %d,%d of %d", x, y, i, xx, yy, oi)
 					} else if i != oi {
 						// log.Printf("overlapping colors at (%d, %d) color index i:%v oi:%v", xx, yy, i, oi)
@@ -70,7 +69,7 @@ func New(g *image.Gray) *image.Paletted {
 			p.SetColorIndex(x-g.Rect.Min.X, y-g.Rect.Min.Y, i)
 		}
 	}
-	p.Palette = Glasbey[:len(p.Palette)]
+	p.Palette = Glasbey
 	return p
 }
 
