@@ -17,7 +17,7 @@ func TestLabelimg(t *testing.T) {
 		Rect:   image.Rect(1, 1, 5, 3), //  4 x 2
 	}
 
-	labeled := New(l)
+	labeled := New(l, 1)
 
 	assert.Equal(t, []uint8{1, 1, 0, 2,
 		1, 0, 2, 2}, labeled.Pix)

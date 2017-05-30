@@ -10,11 +10,16 @@ import (
 // type LabelImage image.Paletted
 
 // New creates a new paletted image by detecting contiguous blobs of non-zero color in `g`.
-// overlap is defined as +/- 1 on x and y axis. Diagonal overlap is not detected
-func New(g *image.Gray) *image.Paletted {
+// overlap is defined as +/- distance on x and y axis. Diagonal overlap is not detected for
+// distance > 1
+func New(g *image.Gray, distance int) *image.Paletted {
 	pb := image.Rect(0, 0, g.Bounds().Dx(), g.Bounds().Dy())
 	// log.Printf("new image %v", pb)
 	p := image.NewPaletted(pb, nil)
+	if distance < 0 {
+		panic("negative distance not allowed")
+	}
+	minOffset, maxOffset := -1*distance, distance
 
 	for x := g.Rect.Min.X; x < g.Rect.Max.X; x++ {
 		for y := g.Rect.Min.Y; y < g.Rect.Max.Y; y++ {
@@ -25,37 +30,45 @@ func New(g *image.Gray) *image.Paletted {
 			}
 			var i uint8
 			// do overlap checks to see if this is a new point or if it overlaps
-			for _, offset := range [][2]int{{0, 1}, {0, -1}, {1, 0}, {-1, 0}} {
-				xo, yo := offset[0], offset[1]
-				xx, yy := x+xo, y+yo
-				// log.Printf("checking offset %d,%d +/- %d/%d -> %d,%d", x, y, xo, yo, xx, yy)
-				if !(image.Point{xx, yy}.In(g.Rect)) {
-					// log.Printf("point (%d,%d) doesn't exist in %v", xx, yy, g.Rect)
-					continue
-				}
-				if g.Pix[g.PixOffset(xx, yy)] != 0 {
-					// contiguous area; check for existing detection
-					oi := p.ColorIndexAt(xx-g.Rect.Min.X, yy-g.Rect.Min.Y)
-					// log.Printf("contiguous area %d,%d = %d", xx, yy, oi)
-					if oi == 0 {
-						// that point will be detected later
-						// log.Printf("%d,%d will be detected later. skipping", xx, yy)
+			for xo := minOffset; xo <= maxOffset; xo++ {
+				for yo := minOffset; yo <= maxOffset; yo++ {
+					if xo+yo > maxOffset || xo+yo < minOffset {
 						continue
 					}
-					if i == 0 {
-						// log.Printf("%d,%d (i:0) matches existing detection at %d,%d of %d", x, y, xx, yy, oi)
-						i = oi
-					} else if i == oi {
-						// log.Printf("%d,%d (i:%d) matches existing detection at %d,%d of %d", x, y, i, xx, yy, oi)
-					} else if i != oi {
-						// log.Printf("overlapping colors at (%d, %d) color index i:%v oi:%v", xx, yy, i, oi)
-						// we need to treat these indexes as the same
-						// use the smaller of the two
-						if oi > i {
-							replaceColor(p, oi, i)
-						} else {
-							replaceColor(p, i, oi)
+					if xo == 0 && yo == 0 {
+						continue
+					}
+
+					xx, yy := x+xo, y+yo
+					// log.Printf("checking offset %d,%d +/- %d/%d -> %d,%d", x, y, xo, yo, xx, yy)
+					if !(image.Point{xx, yy}.In(g.Rect)) {
+						// log.Printf("point (%d,%d) doesn't exist in %v", xx, yy, g.Rect)
+						continue
+					}
+					if g.Pix[g.PixOffset(xx, yy)] != 0 {
+						// contiguous area; check for existing detection
+						oi := p.ColorIndexAt(xx-g.Rect.Min.X, yy-g.Rect.Min.Y)
+						// log.Printf("contiguous area %d,%d = %d", xx, yy, oi)
+						if oi == 0 {
+							// that point will be detected later
+							// log.Printf("%d,%d will be detected later. skipping", xx, yy)
+							continue
+						}
+						if i == 0 {
+							// log.Printf("%d,%d (i:0) matches existing detection at %d,%d of %d", x, y, xx, yy, oi)
 							i = oi
+						} else if i == oi {
+							// log.Printf("%d,%d (i:%d) matches existing detection at %d,%d of %d", x, y, i, xx, yy, oi)
+						} else if i != oi {
+							// log.Printf("overlapping colors at (%d, %d) color index i:%v oi:%v", xx, yy, i, oi)
+							// we need to treat these indexes as the same
+							// use the smaller of the two
+							if oi > i {
+								replaceColor(p, oi, i)
+							} else {
+								replaceColor(p, i, oi)
+								i = oi
+							}
 						}
 					}
 				}

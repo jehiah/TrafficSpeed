@@ -215,6 +215,7 @@ func (p *Project) Run() error {
 			}
 			// Crop
 			rgbImg = rgbImg.SubImage(p.BBox.Rect()).(*image.RGBA)
+
 			// rgbImg = transform.Crop(rgbImg, p.BBox.Rect())
 			p.Masks.Apply(rgbImg)
 		}
@@ -239,7 +240,7 @@ func (p *Project) Run() error {
 
 	}
 	if p.Step == 5 && bgavg != nil {
-		analysis.Calculate(bgavg, p.Blur, p.Tolerance)
+		analysis.Calculate(bgavg, int(p.Blur), p.Tolerance)
 		p.Response.FrameAnalysis = append(p.Response.FrameAnalysis, *analysis)
 	}
 

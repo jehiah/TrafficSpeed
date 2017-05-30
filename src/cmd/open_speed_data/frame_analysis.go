@@ -6,7 +6,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/anthonynsimon/bild/blur"
 	"github.com/nfnt/resize"
 	"labelimg"
 )
@@ -34,19 +33,16 @@ func (f FrameAnalysis) NeedsMore() bool {
 	return len(f.images) < analysFrameCount
 }
 
-func (f *FrameAnalysis) Calculate(bg *image.RGBA, blurRadius int64, tolerance uint8) {
+func (f *FrameAnalysis) Calculate(bg *image.RGBA, distance int, tolerance uint8) {
 	log.Printf("analysis covering %d frames starting at %s", len(f.images), f.Timestamp)
 	if len(f.images) == 0 {
 		return
 	}
 	src := f.images[0]
-	if blurRadius > 0 {
-		src = blur.Box(src, float64(blurRadius))
-	}
 	highlight := SubImage(src, bg, tolerance)
 	f.Base = dataImg(f.images[0], "image/png")
 	f.Highlight = dataImg(highlight, "image/png")
-	f.Colored = dataImg(labelimg.New(highlight), "image/png")
+	f.Colored = dataImg(labelimg.New(highlight, distance), "image/png")
 
 	// animate 2s of video in 1s (drop 50% of frames)
 	// ^^ == highlight_gif
@@ -58,14 +54,11 @@ func (f *FrameAnalysis) Calculate(bg *image.RGBA, blurRadius int64, tolerance ui
 	bgresize := resize.Thumbnail(550, 200, bg, resize.NearestNeighbor).(*image.RGBA)
 	for i := 0; i < 60 && i < len(f.images); i += 3 {
 		im := f.images[i]
-		if blurRadius > 0 {
-			im = blur.Box(im, float64(blurRadius))
-		}
 		sim := resize.Thumbnail(550, 200, im, resize.NearestNeighbor)
 		baseGif = append(baseGif, sim)
 		detected := SubImage(sim.(*image.RGBA), bgresize, tolerance)
 		highlightGif = append(highlightGif, detected)
-		colored := labelimg.New(detected)
+		colored := labelimg.New(detected, distance)
 		coloredGif = append(coloredGif, colored)
 	}
 	f.BaseGif = dataGif(NewGIF(baseGif))
