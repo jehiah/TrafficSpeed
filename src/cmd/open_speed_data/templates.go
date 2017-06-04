@@ -34,14 +34,37 @@ const tpl = `
 	{{ end }}
 
 
-	<h2>Step 1: Video File</h2>
+	<h2>Video File</h2>
 	<p><code>{{.Filename}}</code> 
 		Frames: <code>{{.Frames}}</code> 
 		Duration: <code>{{.Duration}}</code>
 		Resolution: <code>{{.VideoResolution}}</code>
 	</p>
-	<div><img src="{{.Response.OverviewImg}}" class="img-responsive"></div>
-	<input type="hidden" name="filename" value="{{.Filename}}" />
+
+	{{ if eq .Step 1}}
+		<h2>Step 1: Crop</h2>
+		<p>Instructions: Click on the image below to select the upper left and lower right corner of the frame 
+		to perform speed analysis on.
+		After selecting "point1" and "point2" select the "Continue" button.
+		</p>
+		<div class="form-group">
+			<label>Point 1: <input name="point1" id="point1" type="text" /></label>
+		</div>
+		<div class="form-group">
+			<label>Point 2: <input name="point2" id="point2" type="text" /></label>
+		</div>
+		<button type="submit" class="btn btn-primary" name="next" value="2">Continue</button>
+
+		<img src="{{.Response.OverviewImg}}" id="getpoint">
+	{{ else if gt .Step 1 }}
+		<h2>Step 1: Crop</h2>
+		<input type="hidden" name="pre_crop" value="{{.PreCrop}}" />
+		<div><img src="{{.Response.OverviewImg}}" class="img-responsive"></div>
+		<p>Selected Range <code>{{.PreCrop}}</code>
+		   Cropped Resolution: <code>{{.Response.PreCroppedResolution}}</code></p>
+	{{ else }}
+		<input type="hidden" name="pre_crop" value="{{.PreCrop}}" />
+	{{ end}}
 	
 	
 	{{ if eq .Step 2 }}
@@ -58,7 +81,7 @@ const tpl = `
 		<div class="form-group">
 			<label>Point 2: <input name="point2" id="point2" type="text" /></label>
 		</div>
-		<button type="submit" class="btn btn-primary">Continue</button>
+		<button type="submit" class="btn btn-primary" name="next" value="3">Continue</button>
 
 		<img src="{{.Response.Step2Img}}" id="getpoint">
 	{{ else if gt .Step 2 }}
@@ -84,17 +107,17 @@ const tpl = `
 		<div class="form-group">
 			<label>Point 2: <input name="point2" id="point2" type="text" /></label>
 		</div>
-		<button type="submit" class="btn btn-primary">Continue</button>
+		<button type="submit" class="btn btn-primary" name="next" value="4">Continue</button>
 
 		<img src="{{.Response.Step3Img}}" id="getpoint">
 	{{ else if gt .Step 3 }}
 		<h2>Step 3: Crop</h2>
-		<p>Selected Range <code>{{.BBox}}</code>
+		<p>Selected Range <code>{{.PostCrop}}</code>
 		   Cropped Resolution: <code>{{.Response.CroppedResolution}}</code></p>
 		<div><img src="{{.Response.Step4Img}}" style="width: 40%; height: 40%;"></div>
-		<input type="hidden" name="bbox" value="{{.BBox}}" />
+		<input type="hidden" name="post_crop" value="{{.PostCrop}}" />
 	{{ else }}
-		<input type="hidden" name="bbox" value="{{.BBox}}" />
+		<input type="hidden" name="post_crop" value="{{.PostCrop}}" />
 	{{ end }}
 
 	{{ if eq .Step 4 }}
@@ -175,15 +198,12 @@ const tpl = `
 			<h4>Time index <code>{{.Timestamp}} seconds</code></h4>
 
 			<p>Frame: (before masking)</p>
-			<img src="{{.Base}}" class="img-responsive" alt="base">
 			<img src="{{.BaseGif}}" class="img-responsive" alt="base-gif">
 
 			<p>Active Image:</p>
-			<img src="{{.Highlight}}" class="img-responsive" alt="highlight">
 			<img src="{{.HighlightGif}}" class="img-responsive" alt="highlight-gif">
 
 			<p>Detected Areas: (after masking)</p>
-			<img src="{{.Colored}}" class="img-responsive" alt="colored">
 			<img src="{{.ColoredGif}}" class="img-responsive" alt="colored-gif">
 
 			{{ if .Positions }}
@@ -206,6 +226,20 @@ const tpl = `
 				</table>
 			{{ end }}
 		</div>
+
+		<div class="col-xs-12 col-md-8 col-lg-6">
+			<h4>Time index <code>{{.Timestamp}} seconds</code></h4>
+
+			<p>Frame: (before masking)</p>
+			<img src="{{.Base}}" class="img-responsive" alt="base">
+
+			<p>Active Image:</p>
+			<img src="{{.Highlight}}" class="img-responsive" alt="highlight">
+
+			<p>Detected Areas: (after masking)</p>
+			<img src="{{.Colored}}" class="img-responsive" alt="colored">
+		</div>
+
 		{{ end }}
 		</div>
 	{{ else if gt .Step 5 }}

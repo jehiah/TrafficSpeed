@@ -18,11 +18,11 @@ func (p *Project) SetStep() {
 		return
 	}
 	switch {
-	case p.Filename == "":
+	case p.PreCrop == nil:
 		p.Step = 1
 	case p.Rotate == 0:
 		p.Step = 2
-	case p.BBox == nil || p.BBox.IsZero():
+	case p.PostCrop == nil || p.PostCrop.IsZero():
 		p.Step = 3
 	case len(p.Masks) == 0:
 		p.Step = 4
@@ -83,12 +83,13 @@ func main() {
 			return d
 		}
 
+		p.PreCrop = ParseBBox(req.Form.Get("pre_crop"))
 		p.Rotate = getf64("rotate", 0)
+		p.PostCrop = ParseBBox(req.Form.Get("post_crop"))
 		p.Tolerance = getuint8("tolerance", 40)
 		p.Blur = geti64("blur", 3)
 		p.MinMass = geti64("min_mass", 100)
 		p.Seek = getf64("seek", 0)
-		p.BBox = ParseBBox(req.Form.Get("bbox"))
 		p.Step = int(geti64("next", 0))
 
 		for _, s := range req.Form["calibration"] {
@@ -103,9 +104,13 @@ func main() {
 		p1, p2 := req.Form.Get("point1"), req.Form.Get("point2")
 		if p1 != "" && p2 != "" {
 			switch {
-			case p.Rotate == 0:
+			case p.Step == 2:
+				p.PreCrop = &BBox{ParsePoint(p1), ParsePoint(p2)}
+			case p.Rotate == 0 && p.Step == 3:
 				p.Rotate = Radians(ParsePoint(p1), ParsePoint(p2))
 				log.Printf("calculated rotation radians %v from a:%v b:%v", p.Rotate, p1, p2)
+			case p.Step == 4:
+				p.PostCrop = &BBox{ParsePoint(p1), ParsePoint(p2)}
 			case p.Step == 6:
 				p.Calibrations = append(p.Calibrations, &Calibration{
 					Seek:   p.Seek,
@@ -115,8 +120,7 @@ func main() {
 				})
 				p.Seek = 0
 			default:
-				p.BBox = &BBox{ParsePoint(p1), ParsePoint(p2)}
-				log.Printf("Bounding Box %#v", p.BBox)
+				log.Panicf("unknown point for step %v", p.Step)
 			}
 		}
 
@@ -135,9 +139,6 @@ func main() {
 			p.Err = err
 		}
 
-		if p.BBox == nil {
-			p.BBox = &BBox{} // make template easier
-		}
 		err = Template.ExecuteTemplate(w, "webpage", p)
 		if err != nil {
 			log.Printf("%s", err)

@@ -33,8 +33,9 @@ type Project struct {
 	Filename string `json:"filename"`
 
 	// User Inputs
+	PreCrop      *BBox          `json:"pre_crop,omitempty"`
 	Rotate       float64        `json:"rotate,omitempty"` // radians
-	BBox         *BBox          `json:"bbox,omitempty"`
+	PostCrop     *BBox          `json:"post_crop,omitempty"`
 	Masks        Masks          `json:"masks,omitempty"`
 	Tolerance    uint8          `json:"tolerance"`
 	Blur         int64          `json:"blur"`
@@ -53,17 +54,18 @@ type Project struct {
 }
 
 type Response struct {
-	Err               string          `json:"err,omitempty"`
-	CroppedResolution string          `json:"cropped_resolution,omitempty"`
-	OverviewGif       template.URL    `json:"overview_gif,omitempty"`
-	OverviewImg       template.URL    `json:"overview_img,omitempty"`
-	Step2Img          template.URL    `json:"step_2_img,omitempty"` // rotation
-	Step3Img          template.URL    `json:"step_3_img,omitempty"` // crop
-	Step4Img          template.URL    `json:"step_4_img,omitempty"` // mask
-	Step4MaskImg      template.URL    `json:"step_4_mask_img,omitempty"`
-	BackgroundImg     template.URL    `json:"background_img,omitempty"`
-	FrameAnalysis     []FrameAnalysis `json:"frame_analysis,omitempty"`
-	Step6Img          template.URL    `json:"step_6_img,omitempty"`
+	Err                  string          `json:"err,omitempty"`
+	PreCroppedResolution string          `json:"pre_cropped_resolution,omitempty"`
+	CroppedResolution    string          `json:"cropped_resolution,omitempty"`
+	OverviewGif          template.URL    `json:"overview_gif,omitempty"`
+	OverviewImg          template.URL    `json:"overview_img,omitempty"`
+	Step2Img             template.URL    `json:"step_2_img,omitempty"` // rotation
+	Step3Img             template.URL    `json:"step_3_img,omitempty"` // crop
+	Step4Img             template.URL    `json:"step_4_img,omitempty"` // mask
+	Step4MaskImg         template.URL    `json:"step_4_mask_img,omitempty"`
+	BackgroundImg        template.URL    `json:"background_img,omitempty"`
+	FrameAnalysis        []FrameAnalysis `json:"frame_analysis,omitempty"`
+	Step6Img             template.URL    `json:"step_6_img,omitempty"`
 
 	DebugImages []template.URL
 }
@@ -163,30 +165,40 @@ func (p *Project) Run() error {
 				return err
 			}
 			rgbImg = RGBA(&vf.Image)
-
+			img = rgbImg
 		}
 
 		if frame == 0 {
 			// set overview image
-			p.Response.OverviewImg = dataImgWithSize(&vf.Image, 400, 300, "")
+			if p.Step > 1 {
+				p.Response.OverviewImg = dataImgWithSize(&vf.Image, 400, 300, "")
+			} else {
+				p.Response.OverviewImg = dataImg(&vf.Image, "image/png")
+			}
+
+			if p.PreCrop != nil {
+				log.Printf("PreCrop %v", p.PreCrop)
+				img = img.SubImage(p.PreCrop.Rect()).(*image.RGBA)
+				p.Response.PreCroppedResolution = fmt.Sprintf("%dx%d", p.PreCrop.Dx(), p.PreCrop.Dy())
+			}
+
 			if p.Step == 2 {
-				p.Response.Step2Img = dataImg(&vf.Image, "")
+				p.Response.Step2Img = dataImg(img, "")
 			}
 
 			if p.Step >= 3 {
 				log.Printf("rotating %v", p.Rotate)
 				// apply rotation
 
-				img = transform.Rotate(rgbImg, RadiansToDegrees(p.Rotate), &transform.RotationOptions{ResizeBounds: true})
+				img = transform.Rotate(img, RadiansToDegrees(p.Rotate), &transform.RotationOptions{ResizeBounds: true})
 				p.Response.Step3Img = dataImg(img, "image/webp")
 			}
 			if p.Step >= 4 {
 				// rotate & crop
-				log.Printf("crop %v", p.BBox)
-
-				img = img.SubImage(p.BBox.Rect()).(*image.RGBA)
+				log.Printf("PostCrop %v", p.PostCrop)
+				img = img.SubImage(p.PostCrop.Rect()).(*image.RGBA)
 				// img = transform.Crop(img, p.BBox.Rect())
-				p.Response.CroppedResolution = fmt.Sprintf("%dx%d", p.BBox.Dx(), p.BBox.Dy())
+				p.Response.CroppedResolution = fmt.Sprintf("%dx%d", p.PostCrop.Dx(), p.PostCrop.Dy())
 				p.Response.Step4Img = dataImg(img, "image/webp")
 			}
 			if p.Step >= 5 {
@@ -200,23 +212,16 @@ func (p *Project) Run() error {
 		case p.Step == 5 && len(bg) < bgFrameCount && frame%bgFrameSkip == 0:
 			fallthrough
 		case p.Step == 5 && analysis.NeedsMore():
-			// WandSetImage(mw, rgbImg)
-			// if p.Rotate != 0 {
-			// 	err = mw.RotateImage(background, RadiansToDegrees(p.Rotate))
-			// }
-			// mw = Crop(mw, p.BBox.Rect())
-			// rgbImg, err = WandImage(mw)
-			// if err != nil {
-			// 	return err
-			// }
+			if p.PreCrop != nil {
+				rgbImg = rgbImg.SubImage(p.PreCrop.Rect()).(*image.RGBA)
+			}
 
 			if p.Rotate != 0 {
 				rgbImg = transform.Rotate(rgbImg, RadiansToDegrees(p.Rotate), &transform.RotationOptions{ResizeBounds: true})
 			}
-			// Crop
-			rgbImg = rgbImg.SubImage(p.BBox.Rect()).(*image.RGBA)
-
-			// rgbImg = transform.Crop(rgbImg, p.BBox.Rect())
+			if p.PostCrop != nil {
+				rgbImg = rgbImg.SubImage(p.PostCrop.Rect()).(*image.RGBA)
+			}
 			p.Masks.Apply(rgbImg)
 		}
 

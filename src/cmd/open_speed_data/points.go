@@ -38,7 +38,10 @@ func (b *BBox) IsZero() bool {
 	return false
 }
 
-func (b BBox) String() string {
+func (b *BBox) String() string {
+	if b == nil {
+		return ""
+	}
 	return fmt.Sprintf("%s %s", b.A, b.B)
 }
 func (b BBox) Height() float64 {

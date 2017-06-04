@@ -29,7 +29,8 @@ func dataImg(img image.Image, mime string) template.URL {
 	var err error
 	switch mime {
 	case "image/png":
-		err = png.Encode(out, img)
+		encoder := &png.Encoder{CompressionLevel: png.NoCompression}
+		err = encoder.Encode(out, img)
 	case "image/webp":
 		err = webp.Encode(out, img, &webp.Options{Quality: 90})
 	default:
