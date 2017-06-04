@@ -35,17 +35,11 @@ func SubImage(a, b *image.RGBA, tolerance uint8) *image.Gray {
 			b := abs16(a.Pix[aOffset+2], b.Pix[bOffset+2])
 			// max delta = 0-255 * 3
 			sum := (r + g + b) / 3
+			// clamp 0/255
 			if sum < c {
-				sum = 0
+				gg.Pix[gg.PixOffset(x, y)] = 0
 			} else {
-				sum = sum * sum // square it
-			}
-			// clamp [0, 255]
-			switch {
-			case sum > 255:
 				gg.Pix[gg.PixOffset(x, y)] = 255
-			default:
-				gg.Pix[gg.PixOffset(x, y)] = uint8(sum)
 			}
 		}
 	}
