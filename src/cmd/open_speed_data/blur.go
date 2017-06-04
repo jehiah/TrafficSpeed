@@ -6,6 +6,9 @@ import (
 
 // Blur provides a simple blur expecting a black & white image
 func Blur(g *image.Gray, radius int) *image.Gray {
+	if radius <= 0 {
+		return g
+	}
 	gg := image.NewGray(g.Rect)
 	var white uint8 = 255
 	min, max := radius*-1, radius
@@ -20,7 +23,7 @@ func Blur(g *image.Gray, radius int) *image.Gray {
 					if xo+yo > radius {
 						continue
 					}
-					if !(image.Point{x + xo, y + yo}.In(g.Rect)) {
+					if (image.Point{x + xo, y + yo}).In(gg.Rect) {
 						gg.Pix[gg.PixOffset(x+xo, y+yo)] = white
 					}
 				}

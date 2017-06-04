@@ -183,6 +183,10 @@ const tpl = `
 			<span class="help-block">Bluring helps define features better and make a single blob for better detection.</span>
 		</div>
 		<div class="form-group">
+			<label>Contiguous Pixels: <input name="contiguous_pixels" id="contiguous_pixels" type="text" value="{{.ContiguousPixels}}" /></label>
+			<span class="help-block">The number of agacent pixels that are checked when detecting contiguous areas. Must be <kbd>&gt;= 1</kbd></span>
+		</div>
+		<div class="form-group">
 			<label>Min Mass: <input name="min_mass" id="min_mass" type="text" value="{{.MinMass}}" /></label>
 			<span class="help-block">Filters out small areas that are detected in the image (such as pedestrians).</span>
 		</div>
@@ -246,6 +250,7 @@ const tpl = `
 		<h2>Step 5: Object Detection</h2>
 		<p>Tolerance: <code>{{.Tolerance}}</code></p>
 		<p>Blur: <code>{{.Blur}}</code></p>
+		<p>Contiguous Pixels: <code>{{.ContiguousPixels}}</code></p>
 		<p>Min Mass: <code>{{.MinMass}}</code></p>
 
 		<p>Background Image:</p>
@@ -253,10 +258,12 @@ const tpl = `
 
 		<input type="hidden" name="tolerance" value="{{.Tolerance}}" />
 		<input type="hidden" name="blur" value="{{.Blur}}" />
+		<input type="hidden" name="contiguous_pixels" value="{{.ContiguousPixels}}" />
 		<input type="hidden" name="min_mass" value="{{.MinMass}}" />
 	{{ else }}
 		<input type="hidden" name="tolerance" value="{{.Tolerance}}" />
 		<input type="hidden" name="blur" value="{{.Blur}}" />
+		<input type="hidden" name="contiguous_pixels" value="{{.ContiguousPixels}}" />
 		<input type="hidden" name="min_mass" value="{{.MinMass}}" />
 	{{ end }}
 	

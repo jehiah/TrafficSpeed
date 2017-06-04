@@ -33,15 +33,16 @@ type Project struct {
 	Filename string `json:"filename"`
 
 	// User Inputs
-	PreCrop      *BBox          `json:"pre_crop,omitempty"`
-	Rotate       float64        `json:"rotate,omitempty"` // radians
-	PostCrop     *BBox          `json:"post_crop,omitempty"`
-	Masks        Masks          `json:"masks,omitempty"`
-	Tolerance    uint8          `json:"tolerance"`
-	Blur         int64          `json:"blur"`
-	MinMass      int64          `json:"min_mass"`
-	Seek         float64        `json:"seek"`
-	Calibrations []*Calibration `json:"calibrations"`
+	PreCrop          *BBox          `json:"pre_crop,omitempty"`
+	Rotate           float64        `json:"rotate,omitempty"` // radians
+	PostCrop         *BBox          `json:"post_crop,omitempty"`
+	Masks            Masks          `json:"masks,omitempty"`
+	Tolerance        uint8          `json:"tolerance"`
+	Blur             int            `json:"blur"`
+	ContiguousPixels int            `json:"contiguous_pixels"`
+	MinMass          int64          `json:"min_mass"`
+	Seek             float64        `json:"seek"`
+	Calibrations     []*Calibration `json:"calibrations"`
 
 	Duration        time.Duration `json:"duration_seconds,omitempty"`
 	VideoResolution string        `json:"video_resolution,omitempty"`
@@ -245,7 +246,7 @@ func (p *Project) Run() error {
 
 	}
 	if p.Step == 5 && bgavg != nil {
-		analysis.Calculate(bgavg, int(p.Blur), p.Tolerance)
+		analysis.Calculate(bgavg, p.Blur, p.ContiguousPixels, p.Tolerance)
 		p.Response.FrameAnalysis = append(p.Response.FrameAnalysis, *analysis)
 	}
 
