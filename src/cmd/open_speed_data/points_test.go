@@ -11,8 +11,8 @@ func TestRadians(t *testing.T) {
 		Radians float64
 	}
 	tests := []testCase{
-		{Point{10, 10}, Point{20, 11}, 0.0996683256962656},
-		{Point{10, 10}, Point{20, 9}, -0.0996683256962656},
+		{Point{10, 10}, Point{20, 11}, -0.0996683256962656},
+		{Point{10, 10}, Point{20, 9}, 0.0996683256962656},
 	}
 
 	for _, tc := range tests {

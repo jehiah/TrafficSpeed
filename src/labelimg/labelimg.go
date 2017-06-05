@@ -7,6 +7,13 @@ import (
 	"image/color"
 )
 
+func abs(i int) int {
+	if i < 0 {
+		return i * -1
+	}
+	return i
+}
+
 // type LabelImage image.Paletted
 
 // New creates a new paletted image by detecting contiguous blobs of non-zero color in `g`.
@@ -16,7 +23,7 @@ func New(g *image.Gray, distance int) *image.Paletted {
 	pb := image.Rect(0, 0, g.Bounds().Dx(), g.Bounds().Dy())
 	// log.Printf("new image %v", pb)
 	p := image.NewPaletted(pb, nil)
-	if distance < 0 {
+	if distance < 1 {
 		panic("negative distance not allowed")
 	}
 	minOffset, maxOffset := -1*distance, distance
@@ -32,7 +39,7 @@ func New(g *image.Gray, distance int) *image.Paletted {
 			// do overlap checks to see if this is a new point or if it overlaps
 			for xo := minOffset; xo <= maxOffset; xo++ {
 				for yo := minOffset; yo <= maxOffset; yo++ {
-					if xo+yo > maxOffset || xo+yo < minOffset {
+					if abs(xo)+abs(yo) > maxOffset{
 						continue
 					}
 					if xo == 0 && yo == 0 {
