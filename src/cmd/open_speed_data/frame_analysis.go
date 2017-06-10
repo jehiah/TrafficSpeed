@@ -33,7 +33,7 @@ func (f FrameAnalysis) NeedsMore() bool {
 	return len(f.images) < analysFrameCount
 }
 
-func (f *FrameAnalysis) Calculate(bg *image.RGBA, blurRadius, contiguousPixels int, tolerance uint8) {
+func (f *FrameAnalysis) Calculate(bg *image.RGBA, blurRadius, contiguousPixels, minMass int, tolerance uint8) {
 	log.Printf("analysis covering %d frames starting at %s", len(f.images), f.Timestamp)
 	if len(f.images) == 0 {
 		return
@@ -43,7 +43,7 @@ func (f *FrameAnalysis) Calculate(bg *image.RGBA, blurRadius, contiguousPixels i
 	highlight := SubImage(src, bg, tolerance)
 	highlight = Blur(highlight, blurRadius)
 	f.Highlight = dataImg(highlight, "image/png")
-	f.Colored = dataImg(labelimg.New(highlight, contiguousPixels), "image/png")
+	f.Colored = dataImg(labelimg.New(highlight, contiguousPixels, minMass), "image/png")
 
 	// animate 2s of video in 1s (drop 50% of frames)
 	// ^^ == highlight_gif
@@ -60,7 +60,7 @@ func (f *FrameAnalysis) Calculate(bg *image.RGBA, blurRadius, contiguousPixels i
 		detected := SubImage(sim.(*image.RGBA), bgresize, tolerance)
 		detected = Blur(detected, blurRadius)
 		highlightGif = append(highlightGif, detected)
-		colored := labelimg.New(detected, contiguousPixels)
+		colored := labelimg.New(detected, contiguousPixels, 1)
 		coloredGif = append(coloredGif, colored)
 	}
 	f.BaseGif = dataGif(NewGIF(baseGif))

@@ -89,7 +89,7 @@ func main() {
 		p.Tolerance = getuint8("tolerance", 40)
 		p.Blur = int(geti64("blur", 2))
 		p.ContiguousPixels = int(geti64("contiguous_pixels", 3))
-		p.MinMass = geti64("min_mass", 100)
+		p.MinMass = int(geti64("min_mass", 50))
 		p.Seek = getf64("seek", 0)
 		p.Step = int(geti64("next", 0))
 

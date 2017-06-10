@@ -17,16 +17,16 @@ func abs(i int) int {
 // type LabelImage image.Paletted
 
 // New creates a new paletted image by detecting contiguous blobs of non-zero color in `g`.
-// overlap is defined as +/- distance on x and y axis. Diagonal overlap is not detected for
-// distance > 1
-func New(g *image.Gray, distance int) *image.Paletted {
+// overlap is defined as +/- contiguous pixes on x and y axis. Diagonal overlap is detected for
+// contiguousPixels > 1. Groups of pixels smaller than minPixels are not returned
+func New(g *image.Gray, contiguousPixels, minPixels int) *image.Paletted {
 	pb := image.Rect(0, 0, g.Bounds().Dx(), g.Bounds().Dy())
 	// log.Printf("new image %v", pb)
 	p := image.NewPaletted(pb, nil)
-	if distance < 1 {
+	if contiguousPixels < 1 {
 		panic("negative distance not allowed")
 	}
-	minOffset, maxOffset := -1*distance, distance
+	minOffset, maxOffset := -1*contiguousPixels, contiguousPixels
 
 	for x := g.Rect.Min.X; x < g.Rect.Max.X; x++ {
 		for y := g.Rect.Min.Y; y < g.Rect.Max.Y; y++ {
@@ -39,7 +39,7 @@ func New(g *image.Gray, distance int) *image.Paletted {
 			// do overlap checks to see if this is a new point or if it overlaps
 			for xo := minOffset; xo <= maxOffset; xo++ {
 				for yo := minOffset; yo <= maxOffset; yo++ {
-					if abs(xo)+abs(yo) > maxOffset{
+					if abs(xo)+abs(yo) > maxOffset {
 						continue
 					}
 					if xo == 0 && yo == 0 {
@@ -89,6 +89,21 @@ func New(g *image.Gray, distance int) *image.Paletted {
 			p.SetColorIndex(x-g.Rect.Min.X, y-g.Rect.Min.Y, i)
 		}
 	}
+
+	// detect groups smaller than minPixels
+	if minPixels > 1 {
+		var hits [255]int
+		for _, pixel := range p.Pix {
+			hits[pixel]++
+		}
+		// walk in reverse
+		for n := 254; n > 0; n-- {
+			if hits[n] > 0 && hits[n] <= minPixels {
+				replaceColor(p, uint8(n), 0)
+			}
+		}
+	}
+
 	p.Palette = Glasbey
 	return p
 }
