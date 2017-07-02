@@ -1,0 +1,7 @@
+Pkg.add("Images")
+Pkg.add("VideoIO")
+Pkg.add("ImageMagick")
+Pkg.add("HttpServer")
+Pkg.add("Interpolations")
+Pkg.add("AffineTransforms")
+Base.compilecache("Interpolations")

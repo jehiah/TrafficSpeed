@@ -1,4 +1,5 @@
-package main
+// diffimg computes the delta (in greyscale) of two color images
+package diffimg
 
 import (
 	"image"
@@ -14,8 +15,11 @@ func abs16(a, b uint8) uint16 {
 	return 0
 }
 
-// a delta image is a - b on a greyscale value of the total absolute combined r+g+b difference
-func SubImage(a, b *image.RGBA, tolerance uint8) *image.Gray {
+// DiffRGBA computes an image with the delta a - b in a greyscale image.
+// the delta is the combined absolute r+g+b difference for each pixel
+// The result is converted to black / white provided thresholdvalue
+// a and b must have the same width and height
+func DiffRGBA(a, b *image.RGBA, tolerance uint8) *image.Gray {
 	aMin := a.Bounds().Min
 	bMin := b.Bounds().Min
 	dx, dy := a.Bounds().Dx(), a.Bounds().Dy()

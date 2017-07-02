@@ -1,6 +1,6 @@
-// avgimg provides implements an Image which exposes the average values of multiple image.YCbCr
+// avgimg computes an "average" image given multiple Images
 //
-// This in essense gives a simple way to average out noise from multiple frames and identify the
+// This gives a simple way to average out noise from multiple frames and identify the
 // static background separate from any foreground motion in a frame
 package avgimg
 

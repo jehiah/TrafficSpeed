@@ -1,4 +1,4 @@
-package main
+package imgutils
 
 import (
 	"image"
@@ -22,12 +22,14 @@ func RGBA(src *image.YCbCr) *image.RGBA {
 	return m
 }
 
-// grey scale
-// for i := 0; i < len(vf.Image.Cb); i++ {
-// 	vf.Image.Cb[i] = 128 // aka .5 the zero point
-// }
-// for i := 0; i < len(vf.Image.Cr); i++ {
-// 	vf.Image.Cr[i] = 128
-// }
-// vf.Image.Cb = make([]uint8, len(vf.Image.Cb))
-// vf.Image.Cr = make([]uint8, len(vf.Image.Cr))
+// GreyYCbR zeros the Cb and Cr channel of a YCbCr image
+func GreyYCbR(img *image.YCbCr) {
+	for i := 0; i < len(img.Cb); i++ {
+		img.Cb[i] = 128 // aka .5 the zero point
+	}
+	for i := 0; i < len(img.Cr); i++ {
+		img.Cr[i] = 128
+	}
+	// i.Cb = make([]uint8, len(i.Cb))
+	// i.Cr = make([]uint8, len(i.Cr))
+}

@@ -6,7 +6,10 @@ import (
 	"log"
 	"time"
 
+	"blurimg"
+	"diffimg"
 	"github.com/nfnt/resize"
+	"imgutils"
 	"labelimg"
 )
 
@@ -40,8 +43,8 @@ func (f *FrameAnalysis) Calculate(bg *image.RGBA, blurRadius, contiguousPixels, 
 	}
 	src := f.images[0]
 	f.Base = dataImg(src, "image/png")
-	highlight := SubImage(src, bg, tolerance)
-	highlight = Blur(highlight, blurRadius)
+	highlight := diffimg.DiffRGBA(src, bg, tolerance)
+	highlight = blurimg.Blur(highlight, blurRadius)
 	f.Highlight = dataImg(highlight, "image/png")
 	f.Colored = dataImg(labelimg.New(highlight, contiguousPixels, minMass), "image/png")
 
@@ -57,13 +60,13 @@ func (f *FrameAnalysis) Calculate(bg *image.RGBA, blurRadius, contiguousPixels, 
 		im := f.images[i]
 		sim := resize.Thumbnail(550, 200, im, resize.NearestNeighbor)
 		baseGif = append(baseGif, sim)
-		detected := SubImage(sim.(*image.RGBA), bgresize, tolerance)
-		detected = Blur(detected, blurRadius)
+		detected := diffimg.DiffRGBA(sim.(*image.RGBA), bgresize, tolerance)
+		detected = blurimg.Blur(detected, blurRadius)
 		highlightGif = append(highlightGif, detected)
 		colored := labelimg.New(detected, contiguousPixels, 1)
 		coloredGif = append(coloredGif, colored)
 	}
-	f.BaseGif = dataGif(NewGIF(baseGif))
-	f.HighlightGif = dataGif(NewGIF(highlightGif))
-	f.ColoredGif = dataGif(NewGIF(coloredGif))
+	f.BaseGif = dataGif(imgutils.NewGIF(baseGif))
+	f.HighlightGif = dataGif(imgutils.NewGIF(highlightGif))
+	f.ColoredGif = dataGif(imgutils.NewGIF(coloredGif))
 }

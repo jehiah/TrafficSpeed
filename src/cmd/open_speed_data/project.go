@@ -17,8 +17,8 @@ import (
 	"github.com/nareix/joy4/format"
 	// "github.com/nareix/joy4/format/mp4"
 	"avgimg"
-	// "gopkg.in/gographics/imagick.v3/imagick"
 	"github.com/anthonynsimon/bild/transform"
+	"imgutils"
 )
 
 func init() {
@@ -165,7 +165,7 @@ func (p *Project) Run() error {
 			if err != nil {
 				return err
 			}
-			rgbImg = RGBA(&vf.Image)
+			rgbImg = imgutils.RGBA(&vf.Image)
 			img = rgbImg
 		}
 
