@@ -1,4 +1,6 @@
 vendor
+data
 pkg
 bin
 temp
+.ipynb_checkpoints
