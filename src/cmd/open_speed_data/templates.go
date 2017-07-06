@@ -53,9 +53,11 @@ const tpl = `
 		<div class="form-group">
 			<label>Point 2: <input name="point2" id="point2" type="text" /></label>
 		</div>
-		<button type="submit" class="btn btn-primary" name="next" value="2">Continue</button>
+		<div class="form-group">
+			<button type="submit" class="btn btn-primary" name="next" value="2">Continue</button>
+		</div>
 
-		<img src="{{.Response.OverviewImg}}" id="getpoint">
+		<div><img src="{{.Response.OverviewImg}}" id="getpoint"></div>
 	{{ else if gt .Step 1 }}
 		<h2>Step 1: Crop</h2>
 		<input type="hidden" name="pre_crop" value="{{.PreCrop}}" />
@@ -81,9 +83,11 @@ const tpl = `
 		<div class="form-group">
 			<label>Point 2: <input name="point2" id="point2" type="text" /></label>
 		</div>
-		<button type="submit" class="btn btn-primary" name="next" value="3">Continue</button>
+		<div class="form-group">
+			<button type="submit" class="btn btn-primary" name="next" value="3">Continue</button>
+		</div>
 
-		<img src="{{.Response.Step2Img}}" id="getpoint">
+		<div><img src="{{.Response.Step2Img}}" id="getpoint"></div>
 	{{ else if gt .Step 2 }}
 		<h2>Step 2: Rotation</h2>
 		<p>Rotation Angle <code>{{.Rotate}} radians</code></p>
@@ -107,9 +111,11 @@ const tpl = `
 		<div class="form-group">
 			<label>Point 2: <input name="point2" id="point2" type="text" /></label>
 		</div>
-		<button type="submit" class="btn btn-primary" name="next" value="4">Continue</button>
+		<div class="form-group">
+			<button type="submit" class="btn btn-primary" name="next" value="4">Continue</button>
+		</div>
 
-		<img src="{{.Response.Step3Img}}" id="getpoint">
+		<div><img src="{{.Response.Step3Img}}" id="getpoint"></div>
 	{{ else if gt .Step 3 }}
 		<h2>Step 3: Crop</h2>
 		<p>Selected Range <code>{{.PostCrop}}</code>
@@ -153,7 +159,7 @@ const tpl = `
 		
 		<p>Mouse Position: <span id="mouse_position" style="font-weight:bold;size:14pt;"></span> <span id="mouse_click" style="font-weight:bold;size:14pt;"></span></p>
 
-		<img src="{{.Response.Step4Img}}" id="mousemove">
+		<div><img src="{{.Response.Step4Img}}" id="mousemove"></div>
 	{{ else if gt .Step 4 }}
 		{{ if .Masks }}
 			<h2>Step 4: Mask Regions</h2>

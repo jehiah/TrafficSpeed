@@ -88,6 +88,9 @@ func NewProject(f string) *Project {
 	if err != nil {
 		log.Panicf("%s", err)
 	}
+	if len(streams) == 0 {
+		log.Fatalf("no streams in %s", f)
+	}
 	vstream := streams[0].(av.VideoCodecData)
 
 	return &Project{
@@ -165,6 +168,11 @@ func (p *Project) Run() error {
 			if err != nil {
 				return err
 			}
+			if vf == nil {
+				log.Printf("no video frame?")
+				frame--
+				continue
+			}
 			rgbImg = imgutils.RGBA(&vf.Image)
 			img = rgbImg
 		}
@@ -197,9 +205,13 @@ func (p *Project) Run() error {
 			if p.Step >= 4 {
 				// rotate & crop
 				log.Printf("PostCrop %v", p.PostCrop)
-				img = img.SubImage(p.PostCrop.Rect()).(*image.RGBA)
-				// img = transform.Crop(img, p.BBox.Rect())
-				p.Response.CroppedResolution = fmt.Sprintf("%dx%d", p.PostCrop.Dx(), p.PostCrop.Dy())
+				if p.PostCrop != nil {
+					img = img.SubImage(p.PostCrop.Rect()).(*image.RGBA)
+					// img = transform.Crop(img, p.BBox.Rect())
+					p.Response.CroppedResolution = fmt.Sprintf("%dx%d", p.PostCrop.Dx(), p.PostCrop.Dy())
+				} else {
+					p.Response.CroppedResolution = fmt.Sprintf("%dx%d", img.Bounds().Dx(), img.Bounds().Dy())
+				}
 				p.Response.Step4Img = dataImg(img, "image/webp")
 			}
 			if p.Step >= 5 {

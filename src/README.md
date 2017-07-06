@@ -23,8 +23,13 @@ http://opentraffic.io/
 # extract keyframes
 
 If the image file is not detected peroperly:
-```
-ffmpeg -i IMG_8491.MOV -an -c copy IMG_8491.m4a
+```bash
+# if it's already h264
+ffmpeg -i in.MOV -an -c copy out.m4a
+
+# to convert to h264
+ffmpeg -i in.avi -an -c:v libx264 data/out.m4a
+
 ```
 
 CGO_LDFLAGS="-L/usr/local/Cellar/ffmpeg/3.3/lib" CGO_CFLAGS="-I/usr/local/Cellar/ffmpeg/3.3/include" gb build
