@@ -27,7 +27,7 @@ type FrameAnalysis struct {
 	Colored      template.URL `json:"colored,omitempty"` // detected items in highlight
 	ColoredGif   template.URL `json:"colored_gif,omitempty"`
 
-	Positions []Position `json:"positions,omitempty"`
+	Positions []labelimg.Label `json:"positions,omitempty"`
 
 	images []*image.RGBA
 }
@@ -46,7 +46,10 @@ func (f *FrameAnalysis) Calculate(bg *image.RGBA, blurRadius, contiguousPixels, 
 	highlight := diffimg.DiffRGBA(src, bg, tolerance)
 	highlight = blurimg.Blur(highlight, blurRadius)
 	f.Highlight = dataImg(highlight, "image/png")
-	f.Colored = dataImg(labelimg.New(highlight, contiguousPixels, minMass), "image/png")
+	detected := labelimg.New(highlight, contiguousPixels, minMass)
+	f.Colored = dataImg(detected, "image/png")
+	f.Positions = labelimg.Labels(detected)
+	log.Printf("%#v", f.Positions)
 
 	// animate 2s of video in 1s (drop 50% of frames)
 	// ^^ == highlight_gif
@@ -63,6 +66,7 @@ func (f *FrameAnalysis) Calculate(bg *image.RGBA, blurRadius, contiguousPixels, 
 		detected := diffimg.DiffRGBA(sim.(*image.RGBA), bgresize, tolerance)
 		detected = blurimg.Blur(detected, blurRadius)
 		highlightGif = append(highlightGif, detected)
+		// since operating on a scaled image, we need to scale contiguousPixels and minMass here
 		colored := labelimg.New(detected, contiguousPixels, 1)
 		coloredGif = append(coloredGif, colored)
 	}

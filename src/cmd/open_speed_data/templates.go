@@ -216,25 +216,6 @@ const tpl = `
 			<p>Detected Areas: (after masking)</p>
 			<img src="{{.ColoredGif}}" class="img-responsive" alt="colored-gif">
 
-			{{ if .Positions }}
-				<table class="table table-striped">
-				<thead>
-				<tr>
-					<th></th><th>Mass</th><th>Position</th><th>Size</th>
-				</tr>
-				</thead>
-				<tbody>
-				{{ range $i, $p := .Positions }}
-				<tr>
-					<th>{{$i}}</th>
-					<td>{{$p.Mass }} pixels</td>
-					<td>{{$p.X | printf "%0.f"}}x{{$p.Y | printf "%0.f"}}</td>
-					<td>{{$p.Size}}</td>
-				</tr>
-				{{ end }}
-				</tbody>
-				</table>
-			{{ end }}
 		</div>
 
 		<div class="col-xs-12 col-md-8 col-lg-6">
@@ -248,6 +229,26 @@ const tpl = `
 
 			<p>Detected Areas: (after masking)</p>
 			<img src="{{.Colored}}" class="img-responsive" alt="colored">
+
+			{{ if .Positions }}
+				<table class="table table-striped">
+				<thead>
+				<tr>
+					<th></th><th>Mass</th><th>Position</th><th>Size</th>
+				</tr>
+				</thead>
+				<tbody>
+				{{ range $i, $p := .Positions }}
+				<tr>
+					<th><small>{{$i}}</small></th>
+					<td>{{$p.Pixels }} pixels</td>
+					<td>{{$p.Center.X}}x{{$p.Center.Y}}</td>
+					<td>{{$p.Bounds.Dx}}x{{$p.Bounds.Dy}}</td>
+				</tr>
+				{{ end }}
+				</tbody>
+				</table>
+			{{ end }}
 		</div>
 
 		{{ end }}
