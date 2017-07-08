@@ -43,9 +43,10 @@ func (f *FrameAnalysis) Calculate(bg *image.RGBA, blurRadius, contiguousPixels, 
 	}
 	src := f.images[0]
 	f.Base = dataImg(src, "image/png")
-	highlight := diffimg.DiffRGBA(src, bg, tolerance)
-	highlight = blurimg.Blur(highlight, blurRadius)
+	highlight := diffimg.DiffRGBA(src, bg, diffimg.SumDifferenceCap)
 	f.Highlight = dataImg(highlight, "image/png")
+	imgutils.BWClamp(highlight, tolerance)
+	highlight = blurimg.Blur(highlight, blurRadius)
 	detected := labelimg.New(highlight, contiguousPixels, minMass)
 	f.Colored = dataImg(detected, "image/png")
 	f.Positions = labelimg.Labels(detected)
@@ -58,17 +59,18 @@ func (f *FrameAnalysis) Calculate(bg *image.RGBA, blurRadius, contiguousPixels, 
 	var highlightGif []image.Image
 	var coloredGif []image.Image
 
-	bgresize := resize.Thumbnail(550, 200, bg, resize.NearestNeighbor).(*image.RGBA)
+	// bgresize := resize.Thumbnail(550, 200, bg, resize.NearestNeighbor).(*image.RGBA)
 	for i := 0; i < 60 && i < len(f.images); i += 3 {
 		im := f.images[i]
-		sim := resize.Thumbnail(550, 200, im, resize.NearestNeighbor)
-		baseGif = append(baseGif, sim)
-		detected := diffimg.DiffRGBA(sim.(*image.RGBA), bgresize, tolerance)
+		baseGif = append(baseGif, resize.Thumbnail(550, 200, im, resize.NearestNeighbor))
+		detected := diffimg.DiffRGBA(im, bg, diffimg.SumDifferenceCap)
+		imgutils.BWClamp(detected, tolerance)
 		detected = blurimg.Blur(detected, blurRadius)
-		highlightGif = append(highlightGif, detected)
+
+		highlightGif = append(highlightGif, resize.Thumbnail(550, 200, detected, resize.NearestNeighbor))
 		// since operating on a scaled image, we need to scale contiguousPixels and minMass here
-		colored := labelimg.New(detected, contiguousPixels, 1)
-		coloredGif = append(coloredGif, colored)
+		colored := labelimg.New(detected, contiguousPixels, minMass)
+		coloredGif = append(coloredGif, resize.Thumbnail(550, 200, colored, resize.NearestNeighbor))
 	}
 	f.BaseGif = dataGif(imgutils.NewGIF(baseGif))
 	f.HighlightGif = dataGif(imgutils.NewGIF(highlightGif))

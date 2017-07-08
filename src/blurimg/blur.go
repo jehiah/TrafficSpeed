@@ -23,6 +23,10 @@ func Blur(g *image.Gray, radius int) *image.Gray {
 		for y := 0; y < g.Rect.Dy(); y++ {
 			offset := g.PixOffset(x, y)
 			if g.Pix[offset] != white {
+				target := gg.PixOffset(x, y)
+				if gg.Pix[target] != white {
+					gg.Pix[target] = g.Pix[offset]
+				}
 				continue
 			}
 			for xo := min; xo <= max; xo++ {

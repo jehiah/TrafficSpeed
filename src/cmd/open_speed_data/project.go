@@ -25,8 +25,8 @@ func init() {
 	format.RegisterAll()
 }
 
-const bgFrameCount = 30
-const bgFrameSkip = 7
+const bgFrameCount = 20
+const bgFrameSkip = 20
 
 type Project struct {
 	Err      error  `json:"error,omitempty"`
@@ -130,7 +130,7 @@ func (p *Project) Run() error {
 
 	// set overview img
 	frame := 0
-	var bg avgimg.AvgRGBA
+	bg := &avgimg.MedianRGBA{}
 	var err error
 
 	for ; ; frame++ {
@@ -152,7 +152,7 @@ func (p *Project) Run() error {
 		interested := true
 		switch {
 		case frame == 0:
-		case p.Step == 5 && len(bg) < bgFrameCount:
+		case p.Step == 5 && len(bg.Images) < bgFrameCount:
 			// get all frames until we have a background because frames are dependent on the previous frame
 		case p.Step == 5 && analysis.NeedsMore():
 		default:
@@ -222,7 +222,7 @@ func (p *Project) Run() error {
 		}
 
 		switch {
-		case p.Step == 5 && len(bg) < bgFrameCount && frame%bgFrameSkip == 0:
+		case p.Step == 5 && len(bg.Images) < bgFrameCount && frame%bgFrameSkip == 0:
 			fallthrough
 		case p.Step == 5 && analysis.NeedsMore():
 			if p.PreCrop != nil {
@@ -238,8 +238,8 @@ func (p *Project) Run() error {
 			p.Masks.Apply(rgbImg)
 		}
 
-		if p.Step == 5 && len(bg) < bgFrameCount && frame%bgFrameSkip == 0 {
-			bg = append(bg, rgbImg)
+		if p.Step == 5 && len(bg.Images) < bgFrameCount && frame%bgFrameSkip == 0 {
+			bg.Add(rgbImg)
 			// debugImg := dataImgWithSize(rgbImg, 400, 200, "image/png")
 			//  			p.Response.DebugImages = append(p.Response.DebugImages, debugImg)
 		}
@@ -251,8 +251,8 @@ func (p *Project) Run() error {
 	}
 
 	var bgavg *image.RGBA
-	if p.Step == 5 && len(bg) > 0 {
-		log.Printf("calculate background from %d frames", len(bg))
+	if p.Step == 5 && len(bg.Images) > 0 {
+		log.Printf("calculate background from %d frames", len(bg.Images))
 		bgavg = bg.Image()
 		p.Response.BackgroundImg = dataImg(bgavg, "")
 
