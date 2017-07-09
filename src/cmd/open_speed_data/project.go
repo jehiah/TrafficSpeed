@@ -67,10 +67,16 @@ type Response struct {
 	Step4MaskImg         template.URL    `json:"step_4_mask_img,omitempty"`
 	BackgroundImg        template.URL    `json:"background_img,omitempty"`
 	FrameAnalysis        []FrameAnalysis `json:"frame_analysis,omitempty"`
-	FramePositions       []FramePosition
+	VehiclePositions     []VehiclePosition
 	Step6Img             template.URL `json:"step_6_img,omitempty"`
 
 	DebugImages []template.URL
+}
+
+type frameImage struct {
+	Frame int
+	Time  time.Duration
+	Image *image.RGBA
 }
 
 func NewProject(f string) *Project {
@@ -135,6 +141,8 @@ func (p *Project) Run() error {
 	bg := &avgimg.MedianRGBA{}
 	var bgavg *image.RGBA
 	var err error
+	var framePositions []FramePosition
+	var pendingAnalysis []frameImage
 	analyzer := &Analyzer{
 		BWCutoff:          p.Tolerance,
 		BlurRadius:        p.Blur,
@@ -261,18 +269,37 @@ func (p *Project) Run() error {
 			log.Printf("saving frame %d for analysis later", frame)
 			analysis.images = append(analysis.images, rgbImg)
 		}
+
 		// set every frame, so this ends w/ the last value
+		if p.Step == 6 && bgavg == nil {
+			pendingAnalysis = append(pendingAnalysis, frameImage{frame, pkt.Time, rgbImg})
+		}
 
 		if p.Step == 6 && bgavg != nil {
 			// process pending frames
+			log.Printf("extracting vehicle position from %d pending frames", len(pendingAnalysis))
+			for _, pf := range pendingAnalysis {
+				if pf.Frame%50 == 0 && pf.Frame > 0 {
+					log.Printf("... frame %d", pf.Frame)
+				}
+				positions := analyzer.Positions(pf.Image)
+				if len(positions) > 0 {
+					framePositions = append(framePositions, FramePosition{pf.Frame, pf.Time, positions})
+				}
+			}
+			pendingAnalysis = nil
 			positions := analyzer.Positions(rgbImg)
 			if len(positions) > 0 {
-				p.Response.FramePositions = append(p.Response.FramePositions, FramePosition{frame, pkt.Time, positions})
+				framePositions = append(framePositions, FramePosition{frame, pkt.Time, positions})
 			}
 		}
 		if frame == 500 {
 			break
 		}
+	}
+
+	if p.Step == 6 {
+		p.Response.VehiclePositions = TrackVehicles(framePositions)
 	}
 
 	if p.Step == 5 && bgavg != nil {

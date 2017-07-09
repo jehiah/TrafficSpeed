@@ -277,40 +277,22 @@ const tpl = `
 	{{ if eq .Step 6 }}
 		<h2>Step 6: Position Detection</h2>
 		
-		...
-		{{ if .Response.FramePositions }}
+		{{ if .Response.VehiclePositions }}
 			<table class="table table-striped">
 			<thead>
 			<tr>
-				<th>Frame</th><th>Time</th><th>Position</th>
+				<th>Frame</th><th>Time</th><th>Vehicle</th><th>Position</th><th>Mass</th><th>Size</th>
 			</tr>
 			</thead>
 			<tbody>
-			{{ range .Response.FramePositions }}
+			{{ range .Response.VehiclePositions }}
 			<tr>
 				<th>{{.Frame}}</th>
 				<td>{{.Time}}</td>
-				<td>
-				{{ if .Positions }}
-					<table class="table table-striped">
-					<thead>
-					<tr>
-						<th></th><th>Mass</th><th>Position</th><th>Size</th>
-					</tr>
-					</thead>
-					<tbody>
-					{{ range $i, $p := .Positions }}
-					<tr>
-						<th><small>{{$i}}</small></th>
-						<td>{{$p.Pixels }} pixels</td>
-						<td>{{$p.Center.X}}x{{$p.Center.Y}}</td>
-						<td>{{$p.Bounds.Dx}}x{{$p.Bounds.Dy}}</td>
-					</tr>
-					{{ end }}
-					</tbody>
-					</table>
-				{{ end }}
-				</td>
+				<td>{{.VehicleID}}</td>
+				<td>{{.Position.Center.X}}x{{.Position.Center.Y}}</td>
+				<td>{{.Position.Pixels }} pixels</td>
+				<td>{{.Position.Bounds.Dx}}x{{.Position.Bounds.Dy}}</td>
 			</tr>
 			{{ end }}
 			</tbody>

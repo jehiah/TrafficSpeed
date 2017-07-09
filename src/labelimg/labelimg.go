@@ -84,7 +84,7 @@ func New(g *image.Gray, contiguousPixels, minPixels int) *image.Paletted {
 			if i == 0 {
 				// add new color
 				if len(p.Palette) == 254 {
-					log.Printf("skipping detectino of x,y (%d,%d); over 255 max", x, y)
+					log.Printf("skipping detection of x,y (%d,%d); over 255 max", x, y)
 					continue
 				}
 				i = uint8(len(p.Palette))
