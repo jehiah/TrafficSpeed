@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"time"
+
+	"labelimg"
 )
 
 // Position matches Position in position.jl
@@ -31,4 +34,10 @@ func (p Position) Span() string {
 }
 func (p Position) Size() string {
 	return fmt.Sprintf("%dx%d", len(p.XSpan), len(p.YSpan))
+}
+
+type FramePosition struct {
+	Frame     int
+	Time      time.Duration
+	Positions []labelimg.Label
 }

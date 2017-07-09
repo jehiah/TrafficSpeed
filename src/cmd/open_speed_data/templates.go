@@ -273,9 +273,54 @@ const tpl = `
 		<input type="hidden" name="contiguous_pixels" value="{{.ContiguousPixels}}" />
 		<input type="hidden" name="min_mass" value="{{.MinMass}}" />
 	{{ end }}
-	
+
 	{{ if eq .Step 6 }}
-		<h2>Step 6: Speed Calibration</h2>
+		<h2>Step 6: Position Detection</h2>
+		
+		...
+		{{ if .Response.FramePositions }}
+			<table class="table table-striped">
+			<thead>
+			<tr>
+				<th>Frame</th><th>Time</th><th>Position</th>
+			</tr>
+			</thead>
+			<tbody>
+			{{ range .Response.FramePositions }}
+			<tr>
+				<th>{{.Frame}}</th>
+				<td>{{.Time}}</td>
+				<td>
+				{{ if .Positions }}
+					<table class="table table-striped">
+					<thead>
+					<tr>
+						<th></th><th>Mass</th><th>Position</th><th>Size</th>
+					</tr>
+					</thead>
+					<tbody>
+					{{ range $i, $p := .Positions }}
+					<tr>
+						<th><small>{{$i}}</small></th>
+						<td>{{$p.Pixels }} pixels</td>
+						<td>{{$p.Center.X}}x{{$p.Center.Y}}</td>
+						<td>{{$p.Bounds.Dx}}x{{$p.Bounds.Dy}}</td>
+					</tr>
+					{{ end }}
+					</tbody>
+					</table>
+				{{ end }}
+				</td>
+			</tr>
+			{{ end }}
+			</tbody>
+			</table>
+		{{ end }}
+
+	{{ end }}
+	
+	{{ if eq .Step 7 }}
+		<h2>Step 7: Speed Calibration</h2>
 		
 		<p>Calibrations: {{range .Calibrations }}<code>{{.Pretty}}</code><br/>{{end}}</p>
 
@@ -304,7 +349,7 @@ const tpl = `
 		<button type="submit" class="btn btn-primary" name="next" value="7">Done</button>
 		
 		<img src="{{.Response.Step6Img}}" id="getpoint">
-	{{ else if gt .Step 6 }}
+	{{ else if gt .Step 7 }}
 		{{ range .Calibrations }}
 			<input type="hidden" name="calibration" value="{{.}}" />
 		{{ end }}

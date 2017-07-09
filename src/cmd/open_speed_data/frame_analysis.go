@@ -17,6 +17,22 @@ const analysFrameCount = 60
 
 var analyizeInterval time.Duration = time.Duration(30) * time.Second
 
+type Analyzer struct {
+	Background        *image.RGBA
+	BWCutoff          uint8
+	BlurRadius        int
+	ContinguousPixels int
+	MinMass           int
+}
+
+func (a Analyzer) Positions(src *image.RGBA) []labelimg.Label {
+	highlight := diffimg.DiffRGBA(src, a.Background, diffimg.SumDifferenceCap)
+	imgutils.BWClamp(highlight, a.BWCutoff)
+	highlight = blurimg.Blur(highlight, a.BlurRadius)
+	detected := labelimg.New(highlight, a.ContinguousPixels, a.MinMass)
+	return labelimg.Labels(detected)
+}
+
 type FrameAnalysis struct {
 	Timestamp time.Duration `json:"ts"`
 

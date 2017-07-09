@@ -25,8 +25,9 @@ func init() {
 	format.RegisterAll()
 }
 
-const bgFrameCount = 20
-const bgFrameSkip = 20
+// roughly 7s of frames
+const bgFrameCount = 15
+const bgFrameSkip = 15
 
 type Project struct {
 	Err      error  `json:"error,omitempty"`
@@ -66,7 +67,8 @@ type Response struct {
 	Step4MaskImg         template.URL    `json:"step_4_mask_img,omitempty"`
 	BackgroundImg        template.URL    `json:"background_img,omitempty"`
 	FrameAnalysis        []FrameAnalysis `json:"frame_analysis,omitempty"`
-	Step6Img             template.URL    `json:"step_6_img,omitempty"`
+	FramePositions       []FramePosition
+	Step6Img             template.URL `json:"step_6_img,omitempty"`
 
 	DebugImages []template.URL
 }
@@ -131,7 +133,14 @@ func (p *Project) Run() error {
 	// set overview img
 	frame := 0
 	bg := &avgimg.MedianRGBA{}
+	var bgavg *image.RGBA
 	var err error
+	analyzer := &Analyzer{
+		BWCutoff:          p.Tolerance,
+		BlurRadius:        p.Blur,
+		ContinguousPixels: p.ContiguousPixels,
+		MinMass:           p.MinMass,
+	}
 
 	for ; ; frame++ {
 		var pkt av.Packet
@@ -155,6 +164,7 @@ func (p *Project) Run() error {
 		case p.Step == 5 && len(bg.Images) < bgFrameCount:
 			// get all frames until we have a background because frames are dependent on the previous frame
 		case p.Step == 5 && analysis.NeedsMore():
+		case p.Step == 6:
 		default:
 			interested = false
 		}
@@ -224,7 +234,7 @@ func (p *Project) Run() error {
 		switch {
 		case p.Step == 5 && len(bg.Images) < bgFrameCount && frame%bgFrameSkip == 0:
 			fallthrough
-		case p.Step == 5 && analysis.NeedsMore():
+		case p.Step == 5 && analysis.NeedsMore() || p.Step == 6:
 			if p.PreCrop != nil {
 				rgbImg = rgbImg.SubImage(p.PreCrop.Rect()).(*image.RGBA)
 			}
@@ -238,25 +248,33 @@ func (p *Project) Run() error {
 			p.Masks.Apply(rgbImg)
 		}
 
-		if p.Step == 5 && len(bg.Images) < bgFrameCount && frame%bgFrameSkip == 0 {
-			bg.Add(rgbImg)
-			// debugImg := dataImgWithSize(rgbImg, 400, 200, "image/png")
-			//  			p.Response.DebugImages = append(p.Response.DebugImages, debugImg)
+		if p.Step >= 5 && len(bg.Images) < bgFrameCount && frame%bgFrameSkip == 0 {
+			bg.Images = append(bg.Images, rgbImg)
+			if len(bg.Images) == bgFrameCount {
+				log.Printf("calculating background from %d frames", len(bg.Images))
+				bgavg = bg.Image()
+				analyzer.Background = bgavg
+				p.Response.BackgroundImg = dataImg(bgavg, "")
+			}
 		}
 		if p.Step == 5 && analysis.NeedsMore() {
 			log.Printf("saving frame %d for analysis later", frame)
 			analysis.images = append(analysis.images, rgbImg)
 		}
 		// set every frame, so this ends w/ the last value
+
+		if p.Step == 6 && bgavg != nil {
+			// process pending frames
+			positions := analyzer.Positions(rgbImg)
+			if len(positions) > 0 {
+				p.Response.FramePositions = append(p.Response.FramePositions, FramePosition{frame, pkt.Time, positions})
+			}
+		}
+		if frame == 500 {
+			break
+		}
 	}
 
-	var bgavg *image.RGBA
-	if p.Step == 5 && len(bg.Images) > 0 {
-		log.Printf("calculate background from %d frames", len(bg.Images))
-		bgavg = bg.Image()
-		p.Response.BackgroundImg = dataImg(bgavg, "")
-
-	}
 	if p.Step == 5 && bgavg != nil {
 		analysis.Calculate(bgavg, p.Blur, p.ContiguousPixels, p.MinMass, p.Tolerance)
 		p.Response.FrameAnalysis = append(p.Response.FrameAnalysis, *analysis)
