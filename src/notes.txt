@@ -1,7 +1,0 @@
-Hi Clarence. Thanks for all your advocacy for safe streets over the years. I greatly appreciate it.  
-
-I have a side project I've been working on intermittently over the past two years, and I'm looking for some help. I have been built a tool to reproduce some analysis that Matt Bauman did [1] in 2015 to detect vehicle speeds from video footage. Unfortunately I don't have access to a location to get ideal raw footage.
-
-So my request is, would you or anyone you know be willing to help shoot 10-30min of arial footage (ideally shot from 10th floor or higher) of a NYC street w/ a suspected speeding problem?
-
-[1]: https://github.com/mbauman/TrafficSpeed/blob/master/TrafficSpeed.ipynb
