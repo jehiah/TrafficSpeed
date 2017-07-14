@@ -45,3 +45,10 @@ http://www.imagemagick.org/script/magick-wand.php
 
 https://www.socketloop.com/tutorials/golang-edge-detection-with-sobel-method
 https://github.com/anthonynsimon/bild
+
+
+# papers to read
+shadow removal
+http://ai2-s2-pdfs.s3.amazonaws.com/1553/ad9f771511172c943c7d4209767acaa1bc73.pdf
+vanishing point
+http://www.cim.mcgill.ca/~langer/558/2009/lecture14.pdf

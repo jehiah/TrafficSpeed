@@ -9,6 +9,9 @@ import (
 	"image"
 	"io"
 	"log"
+	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/nareix/joy4/av"
@@ -49,14 +52,13 @@ type Project struct {
 	VideoResolution string        `json:"video_resolution,omitempty"`
 	Frames          int64         `json:"frames,omitempty"`
 
-	Step     int      `json:"step"`
-	Response Response `json:"response,omitempty"`
+	Step     int `json:"step"`
+	Response Response
 
 	demuxer av.DemuxCloser
 }
 
 type Response struct {
-	Err                  string          `json:"err,omitempty"`
 	PreCroppedResolution string          `json:"pre_cropped_resolution,omitempty"`
 	CroppedResolution    string          `json:"cropped_resolution,omitempty"`
 	OverviewGif          template.URL    `json:"overview_gif,omitempty"`
@@ -109,6 +111,85 @@ func NewProject(f string) *Project {
 	}
 }
 
+func (p *Project) Load(req *http.Request) error {
+	getf64 := func(key string, d float64) float64 {
+		if v := req.Form.Get(key); v != "" {
+			if f, err := strconv.ParseFloat(v, 64); err == nil {
+				return f
+			}
+		}
+		return d
+	}
+	geti64 := func(key string, d int64) int64 {
+		if v := req.Form.Get(key); v != "" {
+			if i, err := strconv.ParseInt(v, 10, 64); err == nil {
+				return i
+			}
+		}
+		return d
+	}
+	getuint8 := func(key string, d uint8) uint8 {
+		if v := req.Form.Get(key); v != "" {
+			if i, err := strconv.ParseUint(v, 10, 8); err == nil {
+				return uint8(i)
+			}
+		}
+		return d
+	}
+
+	p.PreCrop = ParseBBox(req.Form.Get("pre_crop"))
+	p.Rotate = getf64("rotate", 0)
+	p.PostCrop = ParseBBox(req.Form.Get("post_crop"))
+	p.Tolerance = getuint8("tolerance", 40)
+	p.Blur = int(geti64("blur", 2))
+	p.ContiguousPixels = int(geti64("contiguous_pixels", 3))
+	p.MinMass = int(geti64("min_mass", 50))
+	p.Seek = getf64("seek", 0)
+	p.Step = int(geti64("next", 0))
+
+	for _, s := range req.Form["calibration"] {
+		c := ParseCalibration(s)
+		if c != nil {
+			p.Calibrations = append(p.Calibrations, c)
+		} else {
+			log.Printf("error parsing calibration %q", s)
+		}
+	}
+
+	p1, p2 := req.Form.Get("point1"), req.Form.Get("point2")
+	if p1 != "" && p2 != "" {
+		switch {
+		case p.Step == 2:
+			p.PreCrop = &BBox{ParsePoint(p1), ParsePoint(p2)}
+		case p.Rotate == 0 && p.Step == 3:
+			p.Rotate = Radians(ParsePoint(p1), ParsePoint(p2))
+			log.Printf("calculated rotation radians %v from a:%v b:%v", p.Rotate, p1, p2)
+		case p.Step == 4:
+			p.PostCrop = &BBox{ParsePoint(p1), ParsePoint(p2)}
+		case p.Step == 6:
+			p.Calibrations = append(p.Calibrations, &Calibration{
+				Seek:   p.Seek,
+				A:      ParsePoint(p1),
+				B:      ParsePoint(p2),
+				Inches: getf64("inches", 0),
+			})
+			p.Seek = 0
+		default:
+			log.Panicf("unknown point for step %v", p.Step)
+		}
+	}
+
+	for i, m := range req.Form["mask"] {
+		if mm, ok := ParseMask(m); ok {
+			p.Masks = append(p.Masks, mm)
+		} else if !ok && len(strings.TrimSpace(m)) > 0 {
+			p.Err = fmt.Errorf("Error Parsing Mask #%d %q", i+1, m)
+			break
+		}
+	}
+	return nil
+}
+
 func (p *Project) Close() {
 	if p.demuxer != nil {
 		p.demuxer.Close()
@@ -116,12 +197,13 @@ func (p *Project) Close() {
 	}
 }
 
-func (p *Project) Run() error {
+func (p *Project) Run() (Response, error) {
 	start := time.Now()
 	defer func() {
 		log.Printf("Run took %s", time.Since(start))
 	}()
 	p.SetStep()
+	var results Response
 
 	streams, _ := p.demuxer.Streams()
 	decoders := make([]*ffmpeg.VideoDecoder, len(streams))
@@ -130,7 +212,7 @@ func (p *Project) Run() error {
 		var err error
 		decoders[i], err = ffmpeg.NewVideoDecoder(vstream)
 		if err != nil {
-			return err
+			return results, err
 		}
 	}
 
@@ -155,7 +237,7 @@ func (p *Project) Run() error {
 		if pkt, err = p.demuxer.ReadPacket(); err != nil {
 			if err != io.EOF {
 				log.Printf("readPacket err: %s", err)
-				return err
+				return results, err
 			}
 			err = nil
 			break
@@ -184,7 +266,7 @@ func (p *Project) Run() error {
 			log.Printf("interested in frame %d %s", frame, pkt.Time)
 			vf, err = decoders[pkt.Idx].Decode(pkt.Data)
 			if err != nil {
-				return err
+				return results, err
 			}
 			if vf == nil {
 				log.Printf("no video frame?")
@@ -198,19 +280,19 @@ func (p *Project) Run() error {
 		if frame == 0 {
 			// set overview image
 			if p.Step > 1 {
-				p.Response.OverviewImg = dataImgWithSize(&vf.Image, 400, 300, "")
+				results.OverviewImg = dataImgWithSize(&vf.Image, 400, 300, "")
 			} else {
-				p.Response.OverviewImg = dataImg(&vf.Image, "image/png")
+				results.OverviewImg = dataImg(&vf.Image, "image/png")
 			}
 
 			if p.PreCrop != nil {
 				log.Printf("PreCrop %v", p.PreCrop)
 				img = img.SubImage(p.PreCrop.Rect()).(*image.RGBA)
-				p.Response.PreCroppedResolution = fmt.Sprintf("%dx%d", p.PreCrop.Dx(), p.PreCrop.Dy())
+				results.PreCroppedResolution = fmt.Sprintf("%dx%d", p.PreCrop.Dx(), p.PreCrop.Dy())
 			}
 
 			if p.Step == 2 {
-				p.Response.Step2Img = dataImg(img, "")
+				results.Step2Img = dataImg(img, "")
 			}
 
 			if p.Step >= 3 {
@@ -218,7 +300,7 @@ func (p *Project) Run() error {
 				// apply rotation
 
 				img = transform.Rotate(img, RadiansToDegrees(p.Rotate), &transform.RotationOptions{ResizeBounds: true})
-				p.Response.Step3Img = dataImg(img, "image/webp")
+				results.Step3Img = dataImg(img, "image/webp")
 			}
 			if p.Step >= 4 {
 				// rotate & crop
@@ -226,16 +308,16 @@ func (p *Project) Run() error {
 				if p.PostCrop != nil {
 					img = img.SubImage(p.PostCrop.Rect()).(*image.RGBA)
 					// img = transform.Crop(img, p.BBox.Rect())
-					p.Response.CroppedResolution = fmt.Sprintf("%dx%d", p.PostCrop.Dx(), p.PostCrop.Dy())
+					results.CroppedResolution = fmt.Sprintf("%dx%d", p.PostCrop.Dx(), p.PostCrop.Dy())
 				} else {
-					p.Response.CroppedResolution = fmt.Sprintf("%dx%d", img.Bounds().Dx(), img.Bounds().Dy())
+					results.CroppedResolution = fmt.Sprintf("%dx%d", img.Bounds().Dx(), img.Bounds().Dy())
 				}
-				p.Response.Step4Img = dataImg(img, "image/webp")
+				results.Step4Img = dataImg(img, "image/webp")
 			}
 			if p.Step >= 5 {
 				// mask
 				p.Masks.Apply(img)
-				p.Response.Step4MaskImg = dataImg(img, "image/webp")
+				results.Step4MaskImg = dataImg(img, "image/webp")
 			}
 		}
 
@@ -262,7 +344,7 @@ func (p *Project) Run() error {
 				log.Printf("calculating background from %d frames", len(bg.Images))
 				bgavg = bg.Image()
 				analyzer.Background = bgavg
-				p.Response.BackgroundImg = dataImg(bgavg, "")
+				results.BackgroundImg = dataImg(bgavg, "")
 			}
 		}
 		if p.Step == 5 && analysis.NeedsMore() {
@@ -293,19 +375,19 @@ func (p *Project) Run() error {
 				framePositions = append(framePositions, FramePosition{frame, pkt.Time, positions})
 			}
 		}
-		if frame == 500 {
+		if p.Step == 6 && frame >= 200 {
 			break
 		}
 	}
 
 	if p.Step == 6 {
-		p.Response.VehiclePositions = TrackVehicles(framePositions)
+		results.VehiclePositions = TrackVehicles(framePositions)
 	}
 
 	if p.Step == 5 && bgavg != nil {
 		analysis.Calculate(bgavg, p.Blur, p.ContiguousPixels, p.MinMass, p.Tolerance)
-		p.Response.FrameAnalysis = append(p.Response.FrameAnalysis, *analysis)
+		results.FrameAnalysis = append(results.FrameAnalysis, *analysis)
 	}
 
-	return nil
+	return results, nil
 }
