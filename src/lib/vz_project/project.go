@@ -1,4 +1,4 @@
-package main
+package project
 
 // #cgo LDFLAGS="-L/usr/local/Cellar/ffmpeg/3.3/lib"
 // #cgo CGO_CFLAGS="-I/usr/local/Cellar/ffmpeg/3.3/include"
@@ -7,26 +7,16 @@ import (
 	"fmt"
 	"html/template"
 	"image"
-	"io"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/nareix/joy4/av"
-	"github.com/nareix/joy4/av/avutil"
-	"github.com/nareix/joy4/cgo/ffmpeg"
-	"github.com/nareix/joy4/format"
-	// "github.com/nareix/joy4/format/mp4"
 	"avgimg"
 	"github.com/anthonynsimon/bild/transform"
 	"imgutils"
 )
-
-func init() {
-	format.RegisterAll()
-}
 
 // roughly 7s of frames
 const bgFrameCount = 15
@@ -35,8 +25,20 @@ const bgFrameSkip = 15
 type Project struct {
 	Err      error  `json:"error,omitempty"`
 	Filename string `json:"filename"`
+	Settings
 
-	// User Inputs
+	Duration        time.Duration `json:"duration_seconds,omitempty"`
+	VideoResolution string        `json:"video_resolution,omitempty"`
+	Frames          int64         `json:"frames,omitempty"`
+
+	Step     int `json:"step"`
+	Response Response
+
+	iterator *Iterator `json:"-"`
+}
+
+// Settings are the user configurable options
+type Settings struct {
 	PreCrop          *BBox          `json:"pre_crop,omitempty"`
 	Rotate           float64        `json:"rotate,omitempty"` // radians
 	PostCrop         *BBox          `json:"post_crop,omitempty"`
@@ -47,15 +49,6 @@ type Project struct {
 	MinMass          int            `json:"min_mass"`
 	Seek             float64        `json:"seek"`
 	Calibrations     []*Calibration `json:"calibrations"`
-
-	Duration        time.Duration `json:"duration_seconds,omitempty"`
-	VideoResolution string        `json:"video_resolution,omitempty"`
-	Frames          int64         `json:"frames,omitempty"`
-
-	Step     int `json:"step"`
-	Response Response
-
-	demuxer av.DemuxCloser
 }
 
 type Response struct {
@@ -82,32 +75,15 @@ type frameImage struct {
 }
 
 func NewProject(f string) *Project {
-	// overview_gif
-	// overview_img
-	// duration_seconds
-	// frames
-
-	// Frames            int64           `json:"frames,omitempty"`
-	// Duration          float64         `json:"duration_seconds,omitempty"`
-
-	file, err := avutil.Open(f)
+	iterator, err := NewIterator(f)
 	if err != nil {
 		log.Panicf("%s", err)
 	}
-	streams, err := file.Streams()
-	if err != nil {
-		log.Panicf("%s", err)
-	}
-	if len(streams) == 0 {
-		log.Fatalf("no streams in %s", f)
-	}
-	vstream := streams[0].(av.VideoCodecData)
 
 	return &Project{
 		Filename:        f,
-		VideoResolution: fmt.Sprintf("%dx%d", vstream.Width(), vstream.Height()),
-
-		demuxer: file,
+		VideoResolution: iterator.VideoResolution(),
+		iterator: iterator,
 	}
 }
 
@@ -191,9 +167,9 @@ func (p *Project) Load(req *http.Request) error {
 }
 
 func (p *Project) Close() {
-	if p.demuxer != nil {
-		p.demuxer.Close()
-		p.demuxer = nil
+	if p.iterator != nil {
+		p.iterator.Close()
+		p.iterator = nil
 	}
 }
 
@@ -204,22 +180,9 @@ func (p *Project) Run() (Response, error) {
 	}()
 	p.SetStep()
 	var results Response
-
-	streams, _ := p.demuxer.Streams()
-	decoders := make([]*ffmpeg.VideoDecoder, len(streams))
-	for i, stream := range streams {
-		vstream := stream.(av.VideoCodecData)
-		var err error
-		decoders[i], err = ffmpeg.NewVideoDecoder(vstream)
-		if err != nil {
-			return results, err
-		}
-	}
-
 	var analysis = &FrameAnalysis{}
 
 	// set overview img
-	frame := 0
 	bg := &avgimg.MedianRGBA{}
 	var bgavg *image.RGBA
 	var err error
@@ -232,25 +195,14 @@ func (p *Project) Run() (Response, error) {
 		MinMass:           p.MinMass,
 	}
 
-	for ; ; frame++ {
-		var pkt av.Packet
-		if pkt, err = p.demuxer.ReadPacket(); err != nil {
-			if err != io.EOF {
-				log.Printf("readPacket err: %s", err)
-				return results, err
-			}
-			err = nil
-			break
-		}
-		if !streams[pkt.Idx].Type().IsVideo() {
-			continue
-		}
-		p.Duration = pkt.Time
+	for p.iterator.Next() {
+		p.Duration = p.iterator.Duration()
+		frame := p.iterator.Frame()
 		p.Frames = int64(frame)
 
 		interested := true
 		switch {
-		case frame == 0:
+		case p.Frames == 0:
 		case p.Step == 5 && len(bg.Images) < bgFrameCount:
 			// get all frames until we have a background because frames are dependent on the previous frame
 		case p.Step == 5 && analysis.NeedsMore():
@@ -259,30 +211,20 @@ func (p *Project) Run() (Response, error) {
 			interested = false
 		}
 
-		var vf *ffmpeg.VideoFrame
 		var rgbImg *image.RGBA
 		var img *image.RGBA
 		if interested {
-			log.Printf("interested in frame %d %s", frame, pkt.Time)
-			vf, err = decoders[pkt.Idx].Decode(pkt.Data)
-			if err != nil {
-				return results, err
-			}
-			if vf == nil {
-				log.Printf("no video frame?")
-				frame--
-				continue
-			}
-			rgbImg = imgutils.RGBA(&vf.Image)
+			log.Printf("interested in frame %d %s", frame, p.iterator.Duration())
+			rgbImg = imgutils.RGBA(p.iterator.Image())
 			img = rgbImg
 		}
 
 		if frame == 0 {
 			// set overview image
 			if p.Step > 1 {
-				results.OverviewImg = dataImgWithSize(&vf.Image, 400, 300, "")
+				results.OverviewImg = dataImgWithSize(p.iterator.Image(), 400, 300, "")
 			} else {
-				results.OverviewImg = dataImg(&vf.Image, "image/png")
+				results.OverviewImg = dataImg(p.iterator.Image(), "image/png")
 			}
 
 			if p.PreCrop != nil {
@@ -354,7 +296,7 @@ func (p *Project) Run() (Response, error) {
 
 		// set every frame, so this ends w/ the last value
 		if p.Step == 6 && bgavg == nil {
-			pendingAnalysis = append(pendingAnalysis, frameImage{frame, pkt.Time, rgbImg})
+			pendingAnalysis = append(pendingAnalysis, frameImage{frame, p.iterator.Duration(), rgbImg})
 		}
 
 		if p.Step == 6 && bgavg != nil {
@@ -372,12 +314,15 @@ func (p *Project) Run() (Response, error) {
 			pendingAnalysis = nil
 			positions := analyzer.Positions(rgbImg)
 			if len(positions) > 0 {
-				framePositions = append(framePositions, FramePosition{frame, pkt.Time, positions})
+				framePositions = append(framePositions, FramePosition{frame, p.iterator.Duration(), positions})
 			}
 		}
 		if p.Step == 6 && frame >= 200 {
 			break
 		}
+	}
+	if err = p.iterator.Error(); err != nil {
+		return results, err
 	}
 
 	if p.Step == 6 {

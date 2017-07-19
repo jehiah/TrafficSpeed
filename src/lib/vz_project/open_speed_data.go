@@ -1,4 +1,4 @@
-package main
+package project
 
 import (
 	"flag"
@@ -49,6 +49,7 @@ func main() {
 	http.HandleFunc("/vehicle_positions.csv", func(w http.ResponseWriter, req *http.Request) {
 		req.ParseForm()
 		p := NewProject(*fileName)
+		defer p.Close()
 		p.Load(req)
 
 	})
@@ -60,6 +61,7 @@ func main() {
 		}
 		req.ParseForm()
 		p := NewProject(*fileName)
+		defer p.Close()
 		p.Load(req)
 
 		p.Response, p.Err = p.Run()

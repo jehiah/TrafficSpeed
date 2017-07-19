@@ -9,3 +9,4 @@ gb vendor fetch -revision 7f2c395b16042d36ab187448a70b9de9ccb5854d github.com/an
 gb vendor fetch github.com/stretchr/testify/assert
 gb vendor fetch -no-recurse -revision d994347edadc56d6a7f863775fb6887606685ae6 github.com/spf13/cobra
 gb vendor fetch -no-recurse -revision c1de95864d73a5465492829d7cb2dd422b19ac96 github.com/spf13/viper
+gb vendor fetch -no-recurse -revision e57e3eeb33f795204c1ca35f56c44f83227c6e66 github.com/spf13/pflag
