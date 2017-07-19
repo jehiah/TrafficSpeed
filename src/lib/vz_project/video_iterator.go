@@ -17,15 +17,14 @@ func init() {
 	format.RegisterAll()
 }
 
-
 type Iterator struct {
-	err error
-	demuxer av.DemuxCloser
+	err      error
+	demuxer  av.DemuxCloser
 	decoders []*ffmpeg.VideoDecoder
-	rect image.Rectangle
-	packet av.Packet
-	frame int
-	vf *ffmpeg.VideoFrame
+	rect     image.Rectangle
+	packet   av.Packet
+	frame    int
+	vf       *ffmpeg.VideoFrame
 }
 
 func (p *Iterator) Close() {
@@ -35,9 +34,8 @@ func (p *Iterator) Close() {
 	}
 }
 
-
 func NewIterator(filename string) (iter *Iterator, err error) {
-	iter = &Iterator{frame:-1}
+	iter = &Iterator{frame: -1}
 	iter.demuxer, err = avutil.Open(filename)
 	if err != nil {
 		return nil, err
@@ -51,18 +49,18 @@ func NewIterator(filename string) (iter *Iterator, err error) {
 	iter.decoders = make([]*ffmpeg.VideoDecoder, len(streams))
 	for i, stream := range streams {
 		// if stream.Type().IsAudio() {
-			// astream := stream.(av.AudioCodecData)
-			// fmt.Println(astream.Type(), astream.SampleRate(), astream.SampleFormat(), astream.ChannelLayout())
+		// astream := stream.(av.AudioCodecData)
+		// fmt.Println(astream.Type(), astream.SampleRate(), astream.SampleFormat(), astream.ChannelLayout())
 		// } else if stream.Type().IsVideo() {
 		if stream.Type().IsVideo() {
 			vstream := stream.(av.VideoCodecData)
 			r := image.Rect(0, 0, vstream.Width(), vstream.Height())
 			if iter.rect.Empty() {
-				iter.rect =r
-			} else if ! iter.rect.Eq(r) {
+				iter.rect = r
+			} else if !iter.rect.Eq(r) {
 				return nil, fmt.Errorf("video stream %d(%v) doesn't match expected %v", i, r, iter.rect)
 			}
-			fmt.Println(vstream.Type(), )
+			fmt.Println(vstream.Type())
 			fmt.Printf("stream[%d] %#v\n", i, vstream)
 			iter.decoders[i], err = ffmpeg.NewVideoDecoder(vstream)
 			if err != nil {
@@ -90,14 +88,14 @@ func (i *Iterator) Next() bool {
 			}
 			i.err = err
 			return false
-		} 
+		}
 		// skip packets we don't have a decoder for
 		if i.decoders[pkt.Idx] == nil {
 			continue
 		}
 		i.packet = pkt
 		i.frame++
-		
+
 		// decode
 		decoder := i.decoders[pkt.Idx]
 		i.vf, err = decoder.Decode(pkt.Data)
@@ -118,13 +116,14 @@ func (i *Iterator) Frame() int {
 	return i.frame
 }
 func (i *Iterator) Image() *image.YCbCr {
-	if i.vf == nil{
+	if i.vf == nil {
 		return nil
 	}
 	return &i.vf.Image
 }
-func (i *Iterator) Error() error {return i.err}
-func (i *Iterator) Duration() time.Duration {return i.packet.Time}
-func (i *Iterator) DurationMs() time.Duration {return (i.packet.Time / time.Millisecond) * time.Millisecond}
-func (i *Iterator) IsKeyFrame() bool {return i.packet.IsKeyFrame}
-
+func (i *Iterator) Error() error            { return i.err }
+func (i *Iterator) Duration() time.Duration { return i.packet.Time }
+func (i *Iterator) DurationMs() time.Duration {
+	return (i.packet.Time / time.Millisecond) * time.Millisecond
+}
+func (i *Iterator) IsKeyFrame() bool { return i.packet.IsKeyFrame }

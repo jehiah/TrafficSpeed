@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"log"
+	"os"
 
 	"cmd/vz_speed_camera/cmd"
 )

@@ -83,7 +83,7 @@ func NewProject(f string) *Project {
 	return &Project{
 		Filename:        f,
 		VideoResolution: iterator.VideoResolution(),
-		iterator: iterator,
+		iterator:        iterator,
 	}
 }
 
