@@ -11,6 +11,7 @@ import (
 	"github.com/nareix/joy4/av/avutil"
 	"github.com/nareix/joy4/cgo/ffmpeg"
 	"github.com/nareix/joy4/format"
+	"github.com/nareix/joy4/format/mp4"
 )
 
 func init() {
@@ -52,6 +53,7 @@ func NewIterator(filename string) (iter *Iterator, err error) {
 		// astream := stream.(av.AudioCodecData)
 		// fmt.Println(astream.Type(), astream.SampleRate(), astream.SampleFormat(), astream.ChannelLayout())
 		// } else if stream.Type().IsVideo() {
+		fmt.Printf("stream[%d] = %s\n", i, stream.Type())
 		if stream.Type().IsVideo() {
 			vstream := stream.(av.VideoCodecData)
 			r := image.Rect(0, 0, vstream.Width(), vstream.Height())
@@ -60,8 +62,8 @@ func NewIterator(filename string) (iter *Iterator, err error) {
 			} else if !iter.rect.Eq(r) {
 				return nil, fmt.Errorf("video stream %d(%v) doesn't match expected %v", i, r, iter.rect)
 			}
-			fmt.Println(vstream.Type())
-			fmt.Printf("stream[%d] %#v\n", i, vstream)
+			// fmt.Printf("stream[%d] = %s\n", i, vstream.Type())
+			// fmt.Printf("stream[%d] %#v\n", i, vstream)
 			iter.decoders[i], err = ffmpeg.NewVideoDecoder(vstream)
 			if err != nil {
 				log.Fatalf("NewVideoDecoder error: %s", err)
@@ -72,6 +74,12 @@ func NewIterator(filename string) (iter *Iterator, err error) {
 		return nil, fmt.Errorf("no video stream found")
 	}
 	return iter, nil
+}
+
+func (i *Iterator) Seek(d time.Duration) error {
+	dm := i.demuxer.(*avutil.HandlerDemuxer).Demuxer.(*mp4.Demuxer)
+	log.Printf("should seek %s", d)
+	return dm.SeekToTime(d)
 }
 
 func (i *Iterator) VideoResolution() string {
@@ -104,7 +112,7 @@ func (i *Iterator) Next() bool {
 			return false
 		}
 		if i.vf == nil {
-			log.Printf("no video frame?")
+			log.Printf("no image at frame %d", i.frame)
 			i.frame--
 			continue
 		}

@@ -23,7 +23,6 @@ const bgFrameCount = 15
 const bgFrameSkip = 15
 
 type Project struct {
-	Err      error  `json:"error,omitempty"`
 	Filename string `json:"filename"`
 	Settings
 
@@ -31,9 +30,11 @@ type Project struct {
 	VideoResolution string        `json:"video_resolution,omitempty"`
 	Frames          int64         `json:"frames,omitempty"`
 
-	Step     int `json:"step"`
-	Response Response
+	Seek     float64  `json:"seek"`
+	Step     int      `json:"-"`
+	Response Response `json:"-"`
 
+	Err      error     `json:"-"`
 	iterator *Iterator `json:"-"`
 }
 
@@ -43,12 +44,11 @@ type Settings struct {
 	Rotate           float64        `json:"rotate,omitempty"` // radians
 	PostCrop         *BBox          `json:"post_crop,omitempty"`
 	Masks            Masks          `json:"masks,omitempty"`
-	Tolerance        uint8          `json:"tolerance"`
-	Blur             int            `json:"blur"`
-	ContiguousPixels int            `json:"contiguous_pixels"`
-	MinMass          int            `json:"min_mass"`
-	Seek             float64        `json:"seek"`
-	Calibrations     []*Calibration `json:"calibrations"`
+	Tolerance        uint8          `json:"tolerance,omitempty"`
+	Blur             int            `json:"blur,omitempty"`
+	ContiguousPixels int            `json:"contiguous_pixels,omitempty"`
+	MinMass          int            `json:"min_mass,omitempty"`
+	Calibrations     []*Calibration `json:"-"`
 }
 
 type Response struct {

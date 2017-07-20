@@ -6,6 +6,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func init() {
+	RootCmd.AddCommand(versionCmd)
+	RootCmd.AddCommand(extractFramesCmd())
+}
+
 var RootCmd = &cobra.Command{
 	Use:   "vz_speed_camera",
 	Short: "VZ Speed Camera measure traffic speed",
