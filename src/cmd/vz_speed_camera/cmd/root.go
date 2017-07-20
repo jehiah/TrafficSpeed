@@ -9,6 +9,7 @@ import (
 func init() {
 	RootCmd.AddCommand(versionCmd)
 	RootCmd.AddCommand(extractFramesCmd())
+	RootCmd.AddCommand(newProjectCmd())
 }
 
 var RootCmd = &cobra.Command{

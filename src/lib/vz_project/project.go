@@ -4,11 +4,13 @@ package project
 // #cgo CGO_CFLAGS="-I/usr/local/Cellar/ffmpeg/3.3/include"
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"image"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -23,14 +25,15 @@ const bgFrameCount = 15
 const bgFrameSkip = 15
 
 type Project struct {
-	Filename string `json:"filename"`
-	Settings
+	Filename string `json:"filename"` // Filename is not relative to Dir
+	Dir      string `json:"dir,omitempty"`
+	Settings `json:"settings"`
 
 	Duration        time.Duration `json:"duration_seconds,omitempty"`
 	VideoResolution string        `json:"video_resolution,omitempty"`
 	Frames          int64         `json:"frames,omitempty"`
 
-	Seek     float64  `json:"seek"`
+	Seek     float64  `json:"-"`
 	Step     int      `json:"-"`
 	Response Response `json:"-"`
 
@@ -74,6 +77,7 @@ type frameImage struct {
 	Image *image.RGBA
 }
 
+// NewProject starst a project for the specified video file
 func NewProject(f string) *Project {
 	iterator, err := NewIterator(f)
 	if err != nil {
@@ -85,6 +89,25 @@ func NewProject(f string) *Project {
 		VideoResolution: iterator.VideoResolution(),
 		iterator:        iterator,
 	}
+}
+
+// LoadProject loads a project from a JSON file
+func LoadProject(f string) (*Project, error) {
+	var p Project
+	r, err := os.Open(f)
+	if err != nil {
+		return nil, err
+	}
+	err = json.NewDecoder(r).Decode(&p)
+	if err != nil {
+		return nil, err
+	}
+
+	p.iterator, err = NewIterator(p.Filename)
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
 }
 
 func (p *Project) Load(req *http.Request) error {

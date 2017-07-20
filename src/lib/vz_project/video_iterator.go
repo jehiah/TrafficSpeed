@@ -36,6 +36,9 @@ func (p *Iterator) Close() {
 }
 
 func NewIterator(filename string) (iter *Iterator, err error) {
+	if filename == "" {
+		panic("missing filename")
+	}
 	iter = &Iterator{frame: -1}
 	iter.demuxer, err = avutil.Open(filename)
 	if err != nil {
