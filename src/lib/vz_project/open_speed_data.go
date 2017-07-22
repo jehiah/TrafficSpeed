@@ -1,7 +1,6 @@
 package project
 
 import (
-	"flag"
 	"log"
 	"net"
 	"net/http"
@@ -34,25 +33,8 @@ func OpenInBrowser(l net.Listener) error {
 	return err
 }
 
-func main() {
-	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Llongfile)
-	fileName := flag.String("file", "", "")
-	httpAddress := flag.String("http-address", ":53001", "http address")
-	skipBrowser := flag.Bool("skip-browser", false, "skip opening browser")
-	flag.Parse()
-
-	if *fileName == "" {
-		log.Fatalf("-file required")
-	}
-
-	http.Handle("/data/", http.StripPrefix("/data/", http.FileServer(http.Dir("../data/"))))
-	http.HandleFunc("/vehicle_positions.csv", func(w http.ResponseWriter, req *http.Request) {
-		req.ParseForm()
-		p := NewProject(*fileName)
-		defer p.Close()
-		p.Load(req)
-
-	})
+func ConfigureUI(p *Project, httpAddress string) {
+	http.Handle("/data/", http.StripPrefix("/data/", http.FileServer(http.Dir(p.Dir))))
 	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		log.Printf("%s %s", req.Method, req.URL)
 		if req.URL.Path != "/" {
@@ -60,36 +42,31 @@ func main() {
 			return
 		}
 		req.ParseForm()
-		p := NewProject(*fileName)
-		defer p.Close()
 		p.Load(req)
-
 		p.Response, p.Err = p.Run()
 		if p.Err != nil {
-			log.Printf("%s", p.Err)
+			log.Print(p.Err)
 		}
 
 		err := Template.ExecuteTemplate(w, "webpage", p)
 		if err != nil {
-			log.Printf("%s", err)
+			log.Print(err)
 		}
 	})
 
-	log.Printf("listening on %s", *httpAddress)
-	listener, err := net.Listen("tcp", *httpAddress)
+	log.Printf("listening on %s", httpAddress)
+	listener, err := net.Listen("tcp", httpAddress)
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
 	log.Printf("Running server at %s", listener.Addr())
-	if !*skipBrowser {
-		go func() {
-			time.Sleep(200 * time.Millisecond)
-			err := OpenInBrowser(listener)
-			if err != nil {
-				log.Println(err)
-			}
-		}()
-	}
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		err := OpenInBrowser(listener)
+		if err != nil {
+			log.Println(err)
+		}
+	}()
 	err = http.Serve(listener, nil)
-	log.Printf("%s", err)
+	log.Print(err)
 }

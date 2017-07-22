@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"image/png"
 	"log"
 	"os"
 	"path/filepath"
@@ -16,7 +17,7 @@ func newProjectCmd() *cobra.Command {
 		Use:   "new -f video.m4a -d project_dir",
 		Short: "Start a new project",
 		Run: func(cmd *cobra.Command, args []string) {
-			targetDir, err := cmd.Flags().GetString("dir")
+			projectDir, err := cmd.Flags().GetString("dir")
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -25,15 +26,16 @@ func newProjectCmd() *cobra.Command {
 				log.Fatal(err)
 			}
 
-			if filename == "" || targetDir == "" {
+			if filename == "" || projectDir == "" {
 				cmd.Usage()
 				return
 			}
-			targetDir, err = filepath.Abs(targetDir)
+			projectDir, err = filepath.Abs(projectDir)
 			if err != nil {
 				log.Fatal(err)
 			}
-			err = os.MkdirAll(targetDir, 0777)
+			fmt.Printf("making project dir %s\n", projectDir)
+			err = os.MkdirAll(projectDir, 0777)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -42,7 +44,7 @@ func newProjectCmd() *cobra.Command {
 			if err != nil {
 				log.Fatal(err)
 			}
-			relfilename, err := filepath.Rel(targetDir, filename)
+			relfilename, err := filepath.Rel(projectDir, filename)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -52,23 +54,29 @@ func newProjectCmd() *cobra.Command {
 				log.Fatal(err)
 			}
 			fmt.Printf("detected video at resolution %s\n", iterator.VideoResolution())
-			iterator.Close()
+			defer iterator.Close()
 
 			p := project.NewProject(filename)
 			p.Filename = relfilename
 
-			settingsname := filepath.Join(targetDir, "project.json")
-			fmt.Printf("creating %s\n", settingsname)
+			fmt.Printf("creating project.json\n")
+			settingsname := filepath.Join(projectDir, "project.json")
 			f, err := os.Create(settingsname)
 			if err != nil {
 				log.Fatal(err)
 			}
-
 			err = json.NewEncoder(f).Encode(p)
 			if err != nil {
 				log.Fatal(err)
 			}
 			f.Close()
+
+			fmt.Printf("extracting first frame as base.png\n")
+			iterator.Next()
+			f, err = os.Create(filepath.Join(projectDir, "base.png"))
+			png.Encode(f, iterator.Image())
+			f.Close()
+
 		},
 	}
 	cmd.Flags().StringP("file", "f", "", "video filename")

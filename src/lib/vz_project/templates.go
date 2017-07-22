@@ -29,9 +29,6 @@ const tpl = `
 	{{ if .Err }}
 		<div class="alert alert-danger" role="alert">{{.Err}}</div>
 	{{ end }}
-	{{ if .Response.Err }}
-		<div class="alert alert-danger" role="alert">{{.Response.Err}}</div>
-	{{ end }}
 
 
 	<h2>Video File</h2>
@@ -57,11 +54,11 @@ const tpl = `
 			<button type="submit" class="btn btn-primary" name="next" value="2">Continue</button>
 		</div>
 
-		<div><img src="{{.Response.OverviewImg}}" id="getpoint"></div>
+		<div><img src="/data/base.png" id="getpoint"></div>
 	{{ else if gt .Step 1 }}
 		<h2>Step 1: Crop</h2>
 		<input type="hidden" name="pre_crop" value="{{.PreCrop}}" />
-		<div><img src="{{.Response.OverviewImg}}" class="img-responsive"></div>
+		<div><img src="/data/base.png" class="img-responsive" style="width:50%; height: 50%;"></div>
 		<p>Selected Range <code>{{.PreCrop}}</code>
 		   Cropped Resolution: <code>{{.Response.PreCroppedResolution}}</code></p>
 	{{ else }}

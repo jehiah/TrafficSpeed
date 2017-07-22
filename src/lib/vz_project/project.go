@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -58,7 +59,6 @@ type Response struct {
 	PreCroppedResolution string          `json:"pre_cropped_resolution,omitempty"`
 	CroppedResolution    string          `json:"cropped_resolution,omitempty"`
 	OverviewGif          template.URL    `json:"overview_gif,omitempty"`
-	OverviewImg          template.URL    `json:"overview_img,omitempty"`
 	Step2Img             template.URL    `json:"step_2_img,omitempty"` // rotation
 	Step3Img             template.URL    `json:"step_3_img,omitempty"` // crop
 	Step4Img             template.URL    `json:"step_4_img,omitempty"` // mask
@@ -102,8 +102,10 @@ func LoadProject(f string) (*Project, error) {
 	if err != nil {
 		return nil, err
 	}
+	p.Dir = filepath.Dir(f)
 
-	p.iterator, err = NewIterator(p.Filename)
+	videoFile := filepath.Join(p.Dir, p.Filename)
+	p.iterator, err = NewIterator(videoFile)
 	if err != nil {
 		return nil, err
 	}
@@ -221,6 +223,7 @@ func (p *Project) Run() (Response, error) {
 	for p.iterator.Next() {
 		p.Duration = p.iterator.Duration()
 		frame := p.iterator.Frame()
+		// log.Printf("frame %d time %s", frame, p.iterator.Duration())
 		p.Frames = int64(frame)
 
 		interested := true
@@ -237,18 +240,12 @@ func (p *Project) Run() (Response, error) {
 		var rgbImg *image.RGBA
 		var img *image.RGBA
 		if interested {
-			log.Printf("interested in frame %d %s", frame, p.iterator.Duration())
+			log.Printf("interested in frame %d time %s", frame, p.iterator.Duration())
 			rgbImg = imgutils.RGBA(p.iterator.Image())
 			img = rgbImg
 		}
 
 		if frame == 0 {
-			// set overview image
-			if p.Step > 1 {
-				results.OverviewImg = dataImgWithSize(p.iterator.Image(), 400, 300, "")
-			} else {
-				results.OverviewImg = dataImg(p.iterator.Image(), "image/png")
-			}
 
 			if p.PreCrop != nil {
 				log.Printf("PreCrop %v", p.PreCrop)
@@ -339,6 +336,9 @@ func (p *Project) Run() (Response, error) {
 			if len(positions) > 0 {
 				framePositions = append(framePositions, FramePosition{frame, p.iterator.Duration(), positions})
 			}
+		}
+		if p.Step <= 1 && frame == 0 {
+			break
 		}
 		if p.Step == 6 && frame >= 200 {
 			break

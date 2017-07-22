@@ -10,6 +10,7 @@ func init() {
 	RootCmd.AddCommand(versionCmd)
 	RootCmd.AddCommand(extractFramesCmd())
 	RootCmd.AddCommand(newProjectCmd())
+	RootCmd.AddCommand(configProjectCmd())
 }
 
 var RootCmd = &cobra.Command{
