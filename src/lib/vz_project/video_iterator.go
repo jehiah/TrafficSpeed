@@ -25,6 +25,7 @@ type Iterator struct {
 	rect     image.Rectangle
 	packet   av.Packet
 	frame    int
+	decoded  bool
 	vf       *ffmpeg.VideoFrame
 }
 
@@ -89,6 +90,22 @@ func (i *Iterator) VideoResolution() string {
 	return fmt.Sprintf("%dx%d", i.rect.Dx(), i.rect.Dy())
 }
 
+func (i *Iterator) NextWithImage() bool {
+	for i.Next() {
+		i.err = i.DecodeFrame()
+		if i.err != nil {
+			return false
+		}
+		if i.vf == nil {
+			log.Printf("no image at frame %d", i.frame)
+			i.frame--
+			continue
+		}
+		return true
+	}
+	return false
+
+}
 func (i *Iterator) Next() bool {
 	var err error
 	var pkt av.Packet
@@ -105,20 +122,8 @@ func (i *Iterator) Next() bool {
 			continue
 		}
 		i.packet = pkt
+		i.vf = nil
 		i.frame++
-
-		// decode
-		decoder := i.decoders[pkt.Idx]
-		i.vf, err = decoder.Decode(pkt.Data)
-		if err != nil {
-			i.err = err
-			return false
-		}
-		if i.vf == nil {
-			log.Printf("no image at frame %d", i.frame)
-			i.frame--
-			continue
-		}
 		return true
 	}
 }
@@ -126,7 +131,20 @@ func (i *Iterator) Next() bool {
 func (i *Iterator) Frame() int {
 	return i.frame
 }
+
+func (i *Iterator) DecodeFrame() error {
+	if i.decoded {
+		return i.err
+	}
+	// decode
+	decoder := i.decoders[i.packet.Idx]
+	var err error
+	i.vf, err = decoder.Decode(i.packet.Data)
+	return err
+}
+
 func (i *Iterator) Image() *image.YCbCr {
+	i.err = i.DecodeFrame()
 	if i.vf == nil {
 		return nil
 	}

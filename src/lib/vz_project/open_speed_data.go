@@ -1,11 +1,15 @@
 package project
 
 import (
+	"context"
+	"encoding/json"
 	"log"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 )
 
@@ -33,8 +37,30 @@ func OpenInBrowser(l net.Listener) error {
 	return err
 }
 
+// exposes a UI for configuration and exits on save or cancel
 func ConfigureUI(p *Project, httpAddress string) {
+	s := &http.Server{Handler: http.DefaultServeMux}
 	http.Handle("/data/", http.StripPrefix("/data/", http.FileServer(http.Dir(p.Dir))))
+	http.HandleFunc("/exit", func(w http.ResponseWriter, req *http.Request) {
+		s.Shutdown(context.TODO())
+	})
+	http.HandleFunc("/save", func(w http.ResponseWriter, req *http.Request) {
+		settingsname := filepath.Join(p.Dir, "project.json")
+		f, err := os.Create(settingsname)
+		if err != nil {
+			log.Print(err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		defer f.Close()
+		err = json.NewEncoder(f).Encode(p)
+		if err != nil {
+			log.Print(err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		s.Shutdown(context.TODO())
+	})
 	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		log.Printf("%s %s", req.Method, req.URL)
 		if req.URL.Path != "/" {
@@ -67,6 +93,6 @@ func ConfigureUI(p *Project, httpAddress string) {
 			log.Println(err)
 		}
 	}()
-	err = http.Serve(listener, nil)
+	err = s.Serve(listener)
 	log.Print(err)
 }

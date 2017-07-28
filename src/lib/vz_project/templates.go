@@ -24,6 +24,7 @@ const tpl = `
 <body>
 <div class="container"><div class="row"><div class="col-xs-12">
 	<h1>Open Speed Data Analysis</h1>
+	<p class="float-right"><a href="/save">save</a> <a href="/exit">exit</a></p>
 	<form method="GET" action=".">
 	
 	{{ if .Err }}

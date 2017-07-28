@@ -30,7 +30,7 @@ type Project struct {
 	Dir      string `json:"dir,omitempty"`
 	Settings `json:"settings"`
 
-	Duration        time.Duration `json:"duration_seconds,omitempty"`
+	Duration        time.Duration `json:"duration,omitempty"`
 	VideoResolution string        `json:"video_resolution,omitempty"`
 	Frames          int64         `json:"frames,omitempty"`
 
@@ -220,15 +220,18 @@ func (p *Project) Run() (Response, error) {
 		MinMass:           p.MinMass,
 	}
 
+	setFrame := p.Frames == 0
 	for p.iterator.Next() {
 		p.Duration = p.iterator.Duration()
 		frame := p.iterator.Frame()
 		// log.Printf("frame %d time %s", frame, p.iterator.Duration())
-		p.Frames = int64(frame)
+		if setFrame {
+			p.Frames = int64(frame)
+		}
 
 		interested := true
 		switch {
-		case p.Frames == 0:
+		case frame == 0:
 		case p.Step == 5 && len(bg.Images) < bgFrameCount:
 			// get all frames until we have a background because frames are dependent on the previous frame
 		case p.Step == 5 && analysis.NeedsMore():
@@ -241,7 +244,11 @@ func (p *Project) Run() (Response, error) {
 		var img *image.RGBA
 		if interested {
 			log.Printf("interested in frame %d time %s", frame, p.iterator.Duration())
-			rgbImg = imgutils.RGBA(p.iterator.Image())
+			if yi := p.iterator.Image(); yi == nil {
+				continue
+			} else {
+				rgbImg = imgutils.RGBA(yi)
+			}
 			img = rgbImg
 		}
 
