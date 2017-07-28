@@ -85,11 +85,11 @@ const tpl = `
 			<button type="submit" class="btn btn-primary" name="next" value="3">Continue</button>
 		</div>
 
-		<div><img src="{{.Response.Step2Img}}" id="getpoint"></div>
+		<div><img src="/data/step2_crop.png" id="getpoint"></div>
 	{{ else if gt .Step 2 }}
 		<h2>Step 2: Rotation</h2>
 		<p>Rotation Angle <code>{{.Rotate}} radians</code></p>
-		<div><img src="{{.Response.Step3Img}}" style="width: 25%; height: 25%;"></div>
+		<div><img src="/data/step3_rotate.png" style="width: 25%; height: 25%;"></div>
 		<input type="hidden" name="rotate" value="{{.Rotate | printf "%0.5f"}}" />
 	{{ else }}
 		<input type="hidden" name="rotate" value="{{.Rotate | printf "%0.5f"}}" />
@@ -113,7 +113,7 @@ const tpl = `
 			<button type="submit" class="btn btn-primary" name="next" value="4">Continue</button>
 		</div>
 
-		<div><img src="{{.Response.Step3Img}}" id="getpoint"></div>
+		<div><img src="/data/step3_rotate.png" id="getpoint"></div>
 	{{ else if gt .Step 3 }}
 		<h2>Step 3: Crop</h2>
 		<p>Selected Range <code>{{.PostCrop}}</code>

@@ -38,8 +38,7 @@ type Project struct {
 	Step     int      `json:"-"`
 	Response Response `json:"-"`
 
-	Err      error     `json:"-"`
-	iterator *Iterator `json:"-"`
+	Err error `json:"-"`
 }
 
 // Settings are the user configurable options
@@ -59,8 +58,6 @@ type Response struct {
 	PreCroppedResolution string          `json:"pre_cropped_resolution,omitempty"`
 	CroppedResolution    string          `json:"cropped_resolution,omitempty"`
 	OverviewGif          template.URL    `json:"overview_gif,omitempty"`
-	Step2Img             template.URL    `json:"step_2_img,omitempty"` // rotation
-	Step3Img             template.URL    `json:"step_3_img,omitempty"` // crop
 	Step4Img             template.URL    `json:"step_4_img,omitempty"` // mask
 	Step4MaskImg         template.URL    `json:"step_4_mask_img,omitempty"`
 	BackgroundImg        template.URL    `json:"background_img,omitempty"`
@@ -78,17 +75,12 @@ type frameImage struct {
 }
 
 // NewProject starst a project for the specified video file
-func NewProject(f string) *Project {
-	iterator, err := NewIterator(f)
-	if err != nil {
-		log.Panicf("%s", err)
-	}
-
-	return &Project{
+func NewProject(f string, iterator *Iterator) *Project {
+	p := &Project{
 		Filename:        f,
 		VideoResolution: iterator.VideoResolution(),
-		iterator:        iterator,
 	}
+	return p
 }
 
 // LoadProject loads a project from a JSON file
@@ -103,13 +95,13 @@ func LoadProject(f string) (*Project, error) {
 		return nil, err
 	}
 	p.Dir = filepath.Dir(f)
-
-	videoFile := filepath.Join(p.Dir, p.Filename)
-	p.iterator, err = NewIterator(videoFile)
-	if err != nil {
-		return nil, err
-	}
 	return &p, nil
+}
+
+func (p *Project) Iterator() (*Iterator, error) {
+	videoFile := filepath.Join(p.Dir, p.Filename)
+	iterator, err := NewIterator(videoFile)
+	return iterator, err
 }
 
 func (p *Project) Load(req *http.Request) error {
@@ -191,26 +183,25 @@ func (p *Project) Load(req *http.Request) error {
 	return nil
 }
 
-func (p *Project) Close() {
-	if p.iterator != nil {
-		p.iterator.Close()
-		p.iterator = nil
-	}
-}
-
 func (p *Project) Run() (Response, error) {
 	start := time.Now()
 	defer func() {
 		log.Printf("Run took %s", time.Since(start))
 	}()
+
 	p.SetStep()
 	var results Response
 	var analysis = &FrameAnalysis{}
 
+	iterator, err := p.Iterator()
+	if err != nil {
+		return results, err
+	}
+	defer iterator.Close()
+
 	// set overview img
 	bg := &avgimg.MedianRGBA{}
 	var bgavg *image.RGBA
-	var err error
 	var framePositions []FramePosition
 	var pendingAnalysis []frameImage
 	analyzer := &Analyzer{
@@ -221,14 +212,15 @@ func (p *Project) Run() (Response, error) {
 	}
 
 	setFrame := p.Frames == 0
-	for p.iterator.Next() {
-		p.Duration = p.iterator.Duration()
-		frame := p.iterator.Frame()
-		// log.Printf("frame %d time %s", frame, p.iterator.Duration())
+	log.Printf("step %v", p.Step)
+	for iterator.Next() {
+		frame := iterator.Frame()
+		// log.Printf("frame %d time %s", frame, iterator.Duration())
 		if setFrame {
 			p.Frames = int64(frame)
+			p.Duration = iterator.Duration()
 		}
-
+		// log.Printf("loop frame:%d duration:%s", frame, iterator.Duration())
 		interested := true
 		switch {
 		case frame == 0:
@@ -243,8 +235,9 @@ func (p *Project) Run() (Response, error) {
 		var rgbImg *image.RGBA
 		var img *image.RGBA
 		if interested {
-			log.Printf("interested in frame %d time %s", frame, p.iterator.Duration())
-			if yi := p.iterator.Image(); yi == nil {
+			log.Printf("interested in frame %d time %s", frame, iterator.Duration())
+			if yi := iterator.Image(); yi == nil {
+				log.Printf("no image. continuing")
 				continue
 			} else {
 				rgbImg = imgutils.RGBA(yi)
@@ -261,7 +254,10 @@ func (p *Project) Run() (Response, error) {
 			}
 
 			if p.Step == 2 {
-				results.Step2Img = dataImg(img, "")
+				err = p.SaveImage(img, "step2_crop.png")
+				if err != nil {
+					return results, err
+				}
 			}
 
 			if p.Step >= 3 {
@@ -269,7 +265,10 @@ func (p *Project) Run() (Response, error) {
 				// apply rotation
 
 				img = transform.Rotate(img, RadiansToDegrees(p.Rotate), &transform.RotationOptions{ResizeBounds: true})
-				results.Step3Img = dataImg(img, "image/webp")
+				err = p.SaveImage(img, "step3_rotate.png")
+				if err != nil {
+					return results, err
+				}
 			}
 			if p.Step >= 4 {
 				// rotate & crop
@@ -323,7 +322,7 @@ func (p *Project) Run() (Response, error) {
 
 		// set every frame, so this ends w/ the last value
 		if p.Step == 6 && bgavg == nil {
-			pendingAnalysis = append(pendingAnalysis, frameImage{frame, p.iterator.Duration(), rgbImg})
+			pendingAnalysis = append(pendingAnalysis, frameImage{frame, iterator.Duration(), rgbImg})
 		}
 
 		if p.Step == 6 && bgavg != nil {
@@ -341,7 +340,7 @@ func (p *Project) Run() (Response, error) {
 			pendingAnalysis = nil
 			positions := analyzer.Positions(rgbImg)
 			if len(positions) > 0 {
-				framePositions = append(framePositions, FramePosition{frame, p.iterator.Duration(), positions})
+				framePositions = append(framePositions, FramePosition{frame, iterator.Duration(), positions})
 			}
 		}
 		if p.Step <= 1 && frame == 0 {
@@ -351,7 +350,7 @@ func (p *Project) Run() (Response, error) {
 			break
 		}
 	}
-	if err = p.iterator.Error(); err != nil {
+	if err = iterator.Error(); err != nil {
 		return results, err
 	}
 

@@ -97,8 +97,6 @@ func (i *Iterator) NextWithImage() bool {
 			return false
 		}
 		if i.vf == nil {
-			log.Printf("no image at frame %d", i.frame)
-			i.frame--
 			continue
 		}
 		return true
@@ -110,6 +108,8 @@ func (i *Iterator) Next() bool {
 	var err error
 	var pkt av.Packet
 	for {
+		i.vf = nil
+		i.decoded = false
 		if pkt, err = i.demuxer.ReadPacket(); err != nil {
 			if err == io.EOF {
 				return false
@@ -122,7 +122,6 @@ func (i *Iterator) Next() bool {
 			continue
 		}
 		i.packet = pkt
-		i.vf = nil
 		i.frame++
 		return true
 	}
@@ -140,6 +139,11 @@ func (i *Iterator) DecodeFrame() error {
 	decoder := i.decoders[i.packet.Idx]
 	var err error
 	i.vf, err = decoder.Decode(i.packet.Data)
+	if i.vf == nil {
+		log.Printf("no image at frame %d", i.frame)
+		i.frame--
+	}
+	i.decoded = true
 	return err
 }
 

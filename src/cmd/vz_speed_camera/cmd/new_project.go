@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"image/png"
 	"log"
 	"os"
 	"path/filepath"
@@ -56,7 +55,8 @@ func newProjectCmd() *cobra.Command {
 			fmt.Printf("detected video at resolution %s\n", iterator.VideoResolution())
 			defer iterator.Close()
 
-			p := project.NewProject(filename)
+			p := project.NewProject(filename, iterator)
+			p.Dir = projectDir
 			p.Filename = relfilename
 
 			fmt.Printf("creating project.json\n")
@@ -72,11 +72,10 @@ func newProjectCmd() *cobra.Command {
 			f.Close()
 
 			fmt.Printf("extracting first frame as base.png\n")
-			iterator.Next()
-			f, err = os.Create(filepath.Join(projectDir, "base.png"))
-			png.Encode(f, iterator.Image())
-			f.Close()
-
+			err = p.SaveImage(iterator.Image(), "base.png")
+			if err != nil {
+				log.Fatal(err)
+			}
 		},
 	}
 	cmd.Flags().StringP("file", "f", "", "video filename")
