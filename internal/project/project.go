@@ -16,9 +16,9 @@ import (
 	"strings"
 	"time"
 
-	"avgimg"
 	"github.com/anthonynsimon/bild/transform"
-	"imgutils"
+	"github.com/jehiah/TrafficSpeed/img/avgimg"
+	"github.com/jehiah/TrafficSpeed/img/imgutils"
 )
 
 // roughly 7s of frames

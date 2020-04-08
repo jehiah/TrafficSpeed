@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/jehiah/TrafficSpeed/internal/project"
 	"github.com/spf13/cobra"
-	project "lib/vz_project"
 )
 
 func newProjectCmd() *cobra.Command {

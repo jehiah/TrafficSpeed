@@ -6,11 +6,11 @@ import (
 	"log"
 	"time"
 
-	"blurimg"
-	"diffimg"
+	"github.com/jehiah/TrafficSpeed/img/blurimg"
+	"github.com/jehiah/TrafficSpeed/img/diffimg"
+	"github.com/jehiah/TrafficSpeed/img/imgutils"
+	"github.com/jehiah/TrafficSpeed/img/labelimg"
 	"github.com/nfnt/resize"
-	"imgutils"
-	"labelimg"
 )
 
 const analysFrameCount = 60

@@ -6,7 +6,7 @@ import (
 	"math"
 	"time"
 
-	"labelimg"
+	"github.com/jehiah/TrafficSpeed/img/labelimg"
 )
 
 // Position matches Position in position.jl

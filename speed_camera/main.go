@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"cmd/vz_speed_camera/cmd"
+	"github.com/jehiah/TrafficSpeed/speed_camera/cmd"
 )
 
 // #cgo LDFLAGS="-L/usr/local/Cellar/ffmpeg/3.3/lib"
