@@ -52,6 +52,18 @@ var black = image.NewUniform(color.Gray{})
 
 type Masks []Mask
 
+func (m Masks) Uniq() Masks {
+	var o Masks
+	data := make(map[Mask]bool)
+	for _, mm := range m {
+		data[mm] = true
+	}
+	for mm, _ := range data {
+		o = append(o, mm)
+	}
+	return o
+}
+
 func (m Masks) Apply(i image.Image) {
 	var ii draw.Image
 	var ok bool

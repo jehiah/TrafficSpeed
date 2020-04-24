@@ -1,7 +1,7 @@
 package project
 
-// #cgo LDFLAGS="-L/usr/local/Cellar/ffmpeg/3.3/lib"
-// #cgo CGO_CFLAGS="-I/usr/local/Cellar/ffmpeg/3.3/include"
+// #cgo LDFLAGS="-L/usr/local/Cellar/ffmpeg/4.2.2_2/lib"
+// #cgo CGO_CFLAGS="-I/usr/local/Cellar/ffmpeg/4.2.2_2/include"
 
 import (
 	"encoding/json"
@@ -180,6 +180,7 @@ func (p *Project) Load(req *http.Request) error {
 			break
 		}
 	}
+	p.Masks = p.Masks.Uniq()
 	return nil
 }
 
@@ -352,6 +353,29 @@ func (p *Project) Run() (Response, error) {
 	}
 	if err = iterator.Error(); err != nil {
 		return results, err
+	}
+	if p.Step >= 5 && bgavg == nil {
+		if len(bg.Images) > 0 {
+			log.Printf("calculating background from %d frames", len(bg.Images))
+			bgavg = bg.Image()
+			analyzer.Background = bgavg
+			results.BackgroundImg = dataImg(bgavg, "")
+
+			if p.Step == 6 {
+				log.Printf("extracting vehicle position from %d pending frames", len(pendingAnalysis))
+				for _, pf := range pendingAnalysis {
+					if pf.Frame%50 == 0 && pf.Frame > 0 {
+						log.Printf("... frame %d", pf.Frame)
+					}
+					positions := analyzer.Positions(pf.Image)
+					if len(positions) > 0 {
+						framePositions = append(framePositions, FramePosition{pf.Frame, pf.Time, positions})
+					}
+				}
+				pendingAnalysis = nil
+			}
+		}
+
 	}
 
 	if p.Step == 6 {

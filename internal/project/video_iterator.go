@@ -57,7 +57,7 @@ func NewIterator(filename string) (iter *Iterator, err error) {
 		// astream := stream.(av.AudioCodecData)
 		// fmt.Println(astream.Type(), astream.SampleRate(), astream.SampleFormat(), astream.ChannelLayout())
 		// } else if stream.Type().IsVideo() {
-		fmt.Printf("stream[%d] = %s\n", i, stream.Type())
+		fmt.Printf("stream[%d] = %s (video:%v)\n", i, stream.Type(), stream.Type().IsVideo())
 		if stream.Type().IsVideo() {
 			vstream := stream.(av.VideoCodecData)
 			r := image.Rect(0, 0, vstream.Width(), vstream.Height())
@@ -138,6 +138,10 @@ func (i *Iterator) DecodeFrame() error {
 	// decode
 	decoder := i.decoders[i.packet.Idx]
 	var err error
+	if len(i.packet.Data) == 0 {
+		log.Printf("no packet at frame %d", i.frame)
+		return nil
+	}
 	i.vf, err = decoder.Decode(i.packet.Data)
 	if i.vf == nil {
 		log.Printf("no image at frame %d", i.frame)
@@ -148,6 +152,11 @@ func (i *Iterator) DecodeFrame() error {
 }
 
 func (i *Iterator) Image() *image.YCbCr {
+	if i.frame == -1 {
+		if !i.NextWithImage() {
+			panic("no image")
+		}
+	}
 	i.err = i.DecodeFrame()
 	if i.vf == nil {
 		return nil

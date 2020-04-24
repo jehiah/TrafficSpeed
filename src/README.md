@@ -1,34 +1,7 @@
-# vision zero speed camera
-
-## create a project
-
-a) new project /path/to/video
-b) make a working directory for this project ymdhms_name
-c) pick all the settings (web UI)
-d) extract positions
-e) render video
-
-## Video Formating
-
-If the image file is not detected peroperly:
-
-If it's already h264
-
-```bash
-ffmpeg -i in.MOV -an -c copy out.m4a
-```
-
-Or to convert to h264
-
-```bash
-ffmpeg -i in.avi -an -c:v libx264 data/out.m4a
-
-```
-
-----
 
 
-CGO_LDFLAGS="-L/usr/local/Cellar/ffmpeg/3.3/lib" CGO_CFLAGS="-I/usr/local/Cellar/ffmpeg/3.3/include" gb build
+
+CGO_LDFLAGS="-L/usr/local/Cellar/ffmpeg/4.2.2_2/lib" CGO_CFLAGS="-I/usr/local/Cellar/ffmpeg/4.2.2_2/include" gb build
 
 
 # Image libraries
